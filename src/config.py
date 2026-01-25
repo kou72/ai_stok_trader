@@ -25,7 +25,7 @@ class Config:
     DROPOUT = 0.3
     
     # 訓練設定
-    BATCH_SIZE = 32
+    BATCH_SIZE = 128
     EPOCHS = 10
     LEARNING_RATE = 0.001
     

@@ -45,9 +45,29 @@ def main(csv_path):
     val_dataset = StockDataset(splits['X_val'], splits['y_val'])
     test_dataset = StockDataset(splits['X_test'], splits['y_test'])
     
-    train_loader = DataLoader(train_dataset, batch_size=Config.BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=Config.BATCH_SIZE, 
+        shuffle=True,
+        num_workers=2,
+        pin_memory=True,
+        prefetch_factor=2
+    )
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=Config.BATCH_SIZE, 
+        shuffle=False,
+        num_workers=2,
+        pin_memory=True,
+        prefetch_factor=2
+    )
+    test_loader = DataLoader(
+        test_dataset, 
+        batch_size=Config.BATCH_SIZE, 
+        shuffle=False,
+        num_workers=2,
+        pin_memory=True
+    )
     
     # 5. LSTMモデル構築
     print("\n" + "=" * 80)
@@ -94,7 +114,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--csv',
         type=str,
-        default='./csv_20260126_003947/1332.csv',
+        default='data/csv_20260126_003947',
         help='CSVファイルのパス'
     )
     
