@@ -30,6 +30,9 @@ Thumbs.db
 *.csv
 /data/csv_*/
 
+# Result files (training results)
+/result/[0-9]*/
+
 # Logs
 *.log
 logs/
