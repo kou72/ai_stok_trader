@@ -32,10 +32,33 @@ ChartJS.register(
   Legend
 )
 
+// 画面サイズ取得用のカスタムフック
+function useWindowSize() {
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  })
+
+  useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  return windowSize
+}
+
 function ResultsPage() {
   const [results, setResults] = useState([])
   const [detailsMap, setDetailsMap] = useState({})
   const [loading, setLoading] = useState(true)
+  const { height } = useWindowSize()
 
   useEffect(() => {
     fetchResults()
@@ -75,10 +98,27 @@ function ResultsPage() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+  if (results.length === 0) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="container mx-auto px-4 py-8">
+          <Link
+            to="/"
+            className="inline-block mb-6 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            ← 学習ページに戻る
+          </Link>
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">学習結果がまだありません</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
+  return (
+    <div className="h-screen bg-white overflow-hidden">
+      <div className="container mx-auto px-4 h-full flex flex-col max-w-6xl">
         {/* カルーセル */}
         <Swiper
           modules={[Navigation, Pagination]}
@@ -86,7 +126,7 @@ function ResultsPage() {
           slidesPerView={1}
           navigation
           pagination={{ clickable: true }}
-          className="results-swiper"
+          className="results-swiper w-full flex-1"
         >
           {results.map((result) => {
             const detail = detailsMap[result.id]
@@ -94,7 +134,7 @@ function ResultsPage() {
 
             return (
               <SwiperSlide key={result.id}>
-                <ResultSlide result={result} detail={detail} />
+                <ResultSlide result={result} detail={detail} viewportHeight={height} />
               </SwiperSlide>
             )
           })}
@@ -104,7 +144,19 @@ function ResultsPage() {
   )
 }
 
-function ResultSlide({ result, detail }) {
+function ResultSlide({ result, detail, viewportHeight }) {
+  // 画面サイズに応じた高さ計算
+  const headerHeight = 80
+  const paginationHeight = 50
+  const padding = 32
+  const availableHeight = viewportHeight - headerHeight - paginationHeight - padding
+
+  // セクションの高さ配分（vh単位ではなくpx）
+  const idHeight = 20
+  const barChartHeight = Math.floor(availableHeight * 0.35)
+  const lineChartHeight = Math.floor(availableHeight * 0.35)
+  const configHeight = availableHeight - idHeight - barChartHeight - lineChartHeight - 16 * 2 // gap分を引く
+
   // 棒グラフデータ（results.json）
   const precisionChartData = {
     labels: ['訓練', '検証', 'テスト'],
@@ -138,14 +190,6 @@ function ResultSlide({ result, detail }) {
       legend: {
         display: false,
       },
-      title: {
-        display: true,
-        text: 'データセット別正答率',
-        font: {
-          size: 18,
-          weight: 'bold',
-        },
-      },
     },
     scales: {
       y: {
@@ -154,8 +198,18 @@ function ResultSlide({ result, detail }) {
         ticks: {
           callback: function(value) {
             return value + '%'
-          }
-        }
+          },
+          font: {
+            size: 10,
+          },
+        },
+      },
+      x: {
+        ticks: {
+          font: {
+            size: 10,
+          },
+        },
       },
     },
   }
@@ -170,6 +224,8 @@ function ResultSlide({ result, detail }) {
         borderColor: 'rgb(239, 68, 68)',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         yAxisID: 'y',
+        borderWidth: 2,
+        pointRadius: 2,
       },
       {
         label: '検証Loss',
@@ -177,6 +233,8 @@ function ResultSlide({ result, detail }) {
         borderColor: 'rgb(249, 115, 22)',
         backgroundColor: 'rgba(249, 115, 22, 0.1)',
         yAxisID: 'y',
+        borderWidth: 2,
+        pointRadius: 2,
       },
       {
         label: '訓練的中率',
@@ -184,6 +242,8 @@ function ResultSlide({ result, detail }) {
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         yAxisID: 'y1',
+        borderWidth: 2,
+        pointRadius: 2,
       },
       {
         label: '検証的中率',
@@ -191,6 +251,8 @@ function ResultSlide({ result, detail }) {
         borderColor: 'rgb(16, 185, 129)',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         yAxisID: 'y1',
+        borderWidth: 2,
+        pointRadius: 2,
       },
     ],
   }
@@ -205,13 +267,11 @@ function ResultSlide({ result, detail }) {
     plugins: {
       legend: {
         position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Lossと的中率の推移',
-        font: {
-          size: 18,
-          weight: 'bold',
+        labels: {
+          font: {
+            size: 10,
+          },
+          boxWidth: 20,
         },
       },
     },
@@ -223,6 +283,14 @@ function ResultSlide({ result, detail }) {
         title: {
           display: true,
           text: 'Loss',
+          font: {
+            size: 10,
+          },
+        },
+        ticks: {
+          font: {
+            size: 9,
+          },
         },
       },
       y1: {
@@ -232,40 +300,54 @@ function ResultSlide({ result, detail }) {
         title: {
           display: true,
           text: '的中率 (%)',
+          font: {
+            size: 10,
+          },
         },
         grid: {
           drawOnChartArea: false,
         },
         min: 0,
         max: 100,
+        ticks: {
+          font: {
+            size: 9,
+          },
+        },
+      },
+      x: {
+        ticks: {
+          font: {
+            size: 9,
+          },
+        },
       },
     },
   }
 
   return (
-    <div className="pb-16">
-      {/* ID */}
-      <div className="text-center mb-6">
-        <p className="text-gray-600 text-sm mt-1">ID: {result.id}</p>
+    <div className="h-full flex flex-col py-2 overflow-hidden">
+      {/* ヘッダー（戻るボタン + ID） */}
+      <div className="flex-shrink-0 flex justify-between items-center px-2 mb-2" style={{ height: `${idHeight}px` }}>
+        <p className="text-gray-600 text-xs">ID: {result.id}</p>
       </div>
 
       {/* 棒グラフ（正答率） */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
-        <div className="h-64">
+      <div className="flex-shrink-0 bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm" style={{ height: `${barChartHeight}px` }}>
+        <div style={{ height: `${barChartHeight - 80}px` }}>
           <Bar data={precisionChartData} options={precisionChartOptions} />
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-4 text-center text-sm">
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
           {['訓練', '検証', 'テスト'].map((name) => {
             const data = detail.results?.[name]
             if (!data) return null
             return (
-              <div key={name} className="bg-gray-50 p-3 rounded">
-                <div className="font-semibold text-gray-700">{name}</div>
-                <div className="text-purple-600 font-bold text-lg">
+              <div key={name} className="bg-gray-50 p-2 rounded">
+                <div className="text-purple-600 font-bold text-sm">
                   {data.precision_percent}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {data.correct_count}/{data.predicted_count}件的中
+                  {data.correct_count}/{data.predicted_count}
                 </div>
               </div>
             )
@@ -274,18 +356,18 @@ function ResultSlide({ result, detail }) {
       </div>
 
       {/* 折れ線グラフ（LossとPrecision） */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
-        <div className="h-80">
+      <div className="flex-shrink-0 bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm" style={{ height: `${lineChartHeight}px` }}>
+        <div style={{ height: `${lineChartHeight - 24}px` }}>
           <Line data={historyChartData} options={historyChartOptions} />
         </div>
       </div>
 
-      {/* Config と TimeLog（2列） */}
-      <div className="grid grid-cols-2 gap-6">
+      {/* Config と TimeLog（2列、スクロール可能） */}
+      <div className="flex-1 grid grid-cols-2 gap-2 overflow-hidden" style={{ height: `${configHeight}px` }}>
         {/* Config */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">学習設定</h3>
-          <div className="space-y-2 text-sm">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm overflow-y-auto">
+          <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">学習設定</h3>
+          <div className="space-y-1 text-xs">
             {detail.config && Object.entries({
               'エポック数': detail.config.EPOCHS,
               'バッチサイズ': detail.config.BATCH_SIZE,
@@ -304,13 +386,13 @@ function ResultSlide({ result, detail }) {
         </div>
 
         {/* TimeLog */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">処理時間</h3>
-          <div className="space-y-2 text-sm">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm overflow-y-auto">
+          <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">処理時間</h3>
+          <div className="space-y-1 text-xs">
             {detail.time_log && Object.entries({
-              'CSVデータ読み込み': detail.time_log['1_load_csv']?.formatted,
-              'データ前処理': detail.time_log['2_preprocess_and_normalize']?.formatted,
-              'シーケンス作成': detail.time_log['3_create_sequences']?.formatted,
+              'CSV読込': detail.time_log['1_load_csv']?.formatted,
+              '前処理': detail.time_log['2_preprocess_and_normalize']?.formatted,
+              'シーケンス': detail.time_log['3_create_sequences']?.formatted,
               'データ分割': detail.time_log['4_split_data']?.formatted,
               'モデル構築': detail.time_log['6_build_model']?.formatted,
               '訓練': detail.time_log['7_train']?.formatted,
