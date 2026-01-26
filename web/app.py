@@ -5,7 +5,8 @@ import os
 import sys
 import subprocess
 import glob
-from flask import Flask, render_template, request, jsonify
+import json
+from flask import Flask, request, jsonify, send_from_directory
 from datetime import datetime
 import threading
 import queue
@@ -13,7 +14,7 @@ import queue
 # プロジェクトルートをパスに追加
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static/dist', static_url_path='')
 
 # 実行状態を管理
 training_status = {
@@ -70,6 +71,10 @@ def run_training(csv_path):
         log_queue.put(f"[{training_status['start_time']}] 学習を開始します...")
         log_queue.put(f"コマンド: {' '.join(cmd)}\n")
 
+        # 環境変数を設定（UTF-8エンコーディングを強制）
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+
         # プロセスを起動
         process = subprocess.Popen(
             cmd,
@@ -78,7 +83,9 @@ def run_training(csv_path):
             text=True,
             bufsize=1,
             cwd=project_root,
-            universal_newlines=True
+            universal_newlines=True,
+            env=env,
+            encoding='utf-8'
         )
 
         # 出力をリアルタイムで読み取る
@@ -117,10 +124,18 @@ def run_training(csv_path):
 @app.route('/')
 def index():
     """
-    トップページ
+    トップページ（Reactアプリを提供）
     """
-    csv_dirs = get_csv_directories()
-    return render_template('index.html', csv_dirs=csv_dirs)
+    return send_from_directory(app.static_folder, 'index.html')
+
+
+@app.route('/csv_dirs')
+def csv_dirs():
+    """
+    CSVディレクトリ一覧を取得
+    """
+    csv_directories = get_csv_directories()
+    return jsonify({'csv_dirs': csv_directories})
 
 
 @app.route('/start_training', methods=['POST'])
@@ -175,6 +190,124 @@ def logs():
     return jsonify({
         'logs': training_status['current_log']
     })
+
+
+@app.route('/api/results')
+def get_results():
+    """
+    result/ 配下のディレクトリ一覧を取得
+    """
+    try:
+        project_root = os.path.join(os.path.dirname(__file__), '..')
+        result_base = os.path.join(project_root, 'result')
+
+        if not os.path.exists(result_base):
+            return jsonify({'results': []})
+
+        result_dirs = glob.glob(os.path.join(result_base, '[0-9]*'))
+        results = []
+
+        for result_dir in result_dirs:
+            if os.path.isdir(result_dir):
+                result_id = os.path.basename(result_dir)
+
+                # タイムスタンプから日時を生成
+                timestamp = datetime.strptime(result_id, '%Y%m%d%H%M%S')
+                formatted_time = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+
+                # config.json を読み込んで情報を取得
+                config_path = os.path.join(result_dir, 'config.json')
+                results_path = os.path.join(result_dir, 'results.json')
+
+                config_data = {}
+                results_data = {}
+
+                if os.path.exists(config_path):
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config_data = json.load(f)
+
+                if os.path.exists(results_path):
+                    with open(results_path, 'r', encoding='utf-8') as f:
+                        results_data = json.load(f)
+
+                results.append({
+                    'id': result_id,
+                    'timestamp': formatted_time,
+                    'config': config_data,
+                    'results': results_data
+                })
+
+        # 新しい順にソート
+        results.sort(key=lambda x: x['id'], reverse=True)
+
+        return jsonify({'results': results})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/results/<result_id>')
+def get_result_detail(result_id):
+    """
+    特定のresultディレクトリの詳細データを取得
+    """
+    try:
+        project_root = os.path.join(os.path.dirname(__file__), '..')
+        result_dir = os.path.join(project_root, 'result', result_id)
+
+        if not os.path.exists(result_dir):
+            return jsonify({'error': 'Result not found'}), 404
+
+        # 各ファイルを読み込む
+        config_path = os.path.join(result_dir, 'config.json')
+        results_path = os.path.join(result_dir, 'results.json')
+        time_log_path = os.path.join(result_dir, 'time_log.json')
+        loss_history_path = os.path.join(result_dir, 'loss_history.csv')
+        precision_history_path = os.path.join(result_dir, 'precision_history.csv')
+
+        detail = {
+            'id': result_id,
+            'timestamp': datetime.strptime(result_id, '%Y%m%d%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
+            'config': None,
+            'results': None,
+            'time_log': None,
+            'loss_history': None,
+            'precision_history': None
+        }
+
+        # config.json
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                detail['config'] = json.load(f)
+
+        # results.json
+        if os.path.exists(results_path):
+            with open(results_path, 'r', encoding='utf-8') as f:
+                detail['results'] = json.load(f)
+
+        # time_log.json
+        if os.path.exists(time_log_path):
+            with open(time_log_path, 'r', encoding='utf-8') as f:
+                detail['time_log'] = json.load(f)
+
+        # loss_history.csv
+        if os.path.exists(loss_history_path):
+            import csv
+            with open(loss_history_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                detail['loss_history'] = list(reader)
+
+        # precision_history.csv
+        if os.path.exists(precision_history_path):
+            import csv
+            with open(precision_history_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                detail['precision_history'] = list(reader)
+
+        return jsonify(detail)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -1,10 +1,16 @@
 # Web Interface
 
-株価予測モデル学習のWebインターフェースです。
+株価予測モデル学習のWebインターフェースです。React + Tailwind CSSで構築されています。
 
 ## 概要
 
-このWebアプリケーションは、`src/main.py`の学習処理をブラウザから実行できるインターフェースを提供します。
+このWebアプリケーションは、`src/main.py`の学習処理をブラウザから実行できるモダンなインターフェースを提供します。
+
+## 技術スタック
+
+- **フロントエンド**: React 18 + Vite
+- **スタイリング**: Tailwind CSS 3
+- **バックエンド**: Flask (Python)
 
 ## 機能
 
@@ -16,15 +22,34 @@
 
 ## 必要なパッケージ
 
+### Python
 ```bash
 pip install flask
 ```
 
-## 使い方
+### Node.js
+Node.js 18以上が必要です。
 
-### 1. Webサーバーの起動
+```bash
+cd web/frontend
+npm install
+```
 
-プロジェクトのルートディレクトリから以下のコマンドを実行します：
+## セットアップ
+
+### 1. フロントエンドのビルド
+
+```bash
+cd web/frontend
+npm install
+npm run build
+```
+
+これにより `web/static/dist/` ディレクトリにビルド成果物が生成されます。
+
+### 2. Webサーバーの起動
+
+プロジェクトのルートディレクトリから：
 
 ```bash
 python web/app.py
@@ -37,7 +62,7 @@ cd web
 python app.py
 ```
 
-### 2. ブラウザでアクセス
+### 3. ブラウザでアクセス
 
 サーバーが起動したら、ブラウザで以下のURLにアクセスします：
 
@@ -45,30 +70,52 @@ python app.py
 http://localhost:5000
 ```
 
-### 3. 学習の実行
+## 開発モード
 
-1. ドロップダウンメニューから学習に使用するCSVディレクトリを選択
-2. 「学習開始」ボタンをクリック
-3. リアルタイムでログが表示されます
-4. 学習が完了すると、結果保存先が表示されます
+フロントエンドの開発時は、Vite開発サーバーを使用できます：
+
+```bash
+cd web/frontend
+npm run dev
+```
+
+開発サーバーは `http://localhost:5173` で起動し、ホットリロードが有効になります。
+APIリクエストは自動的に `http://localhost:5000` にプロキシされます。
 
 ## ファイル構成
 
 ```
 web/
-├── app.py                 # Flaskアプリケーション本体
-├── templates/
-│   └── index.html        # HTMLテンプレート
+├── frontend/              # Reactアプリケーション
+│   ├── src/
+│   │   ├── App.jsx       # メインコンポーネント
+│   │   ├── main.jsx      # エントリーポイント
+│   │   └── index.css     # Tailwind CSS
+│   ├── index.html        # HTMLテンプレート
+│   ├── package.json      # npm設定
+│   ├── vite.config.js    # Vite設定
+│   ├── tailwind.config.js # Tailwind設定
+│   └── postcss.config.js  # PostCSS設定
 ├── static/
-│   ├── style.css         # スタイルシート
-│   └── script.js         # JavaScriptファイル
+│   └── dist/             # ビルド成果物（自動生成）
+├── app.py                # Flaskアプリケーション
 └── README.md             # このファイル
 ```
 
 ## API エンドポイント
 
 ### GET /
-トップページを表示
+Reactアプリを提供
+
+### GET /csv_dirs
+CSVディレクトリ一覧を取得
+
+**レスポンス:**
+```json
+{
+  "csv_dirs": ["csv_20260126_003947", "csv_20260126_001036"]
+}
+```
 
 ### POST /start_training
 学習を開始
@@ -118,6 +165,7 @@ web/
 - ブラウザを閉じても学習は継続されます
 - 複数のブラウザタブで同時にアクセス可能です（学習状態は共有されます）
 - サーバーを停止すると、実行中の学習も停止します
+- フロントエンドを変更した場合は `npm run build` でビルドし直してください
 
 ## トラブルシューティング
 
@@ -129,6 +177,8 @@ web/
 app.run(debug=True, host='0.0.0.0', port=8080)  # 5000を8080などに変更
 ```
 
+開発モードの場合は `vite.config.js` のプロキシ設定も変更が必要です。
+
 ### 学習が開始されない
 
 - `data/csv_*` ディレクトリが存在するか確認してください
@@ -138,18 +188,35 @@ app.run(debug=True, host='0.0.0.0', port=8080)  # 5000を8080などに変更
 python src/main.py --csv data/csv_20260126_003947
 ```
 
-### ログが表示されない
+### フロントエンドが表示されない
 
-ブラウザの開発者ツール（F12）を開いて、コンソールにエラーが表示されていないか確認してください。
+1. ビルドが完了しているか確認:
+```bash
+cd web/frontend
+npm run build
+```
+
+2. `web/static/dist/` ディレクトリにファイルが生成されているか確認
+
+### npm installでエラーが出る
+
+Node.jsのバージョンを確認してください（18以上が必要）:
+```bash
+node --version
+```
 
 ## 開発者向け
 
-### デバッグモード
+### スタイルのカスタマイズ
 
-`app.py`の最後の行で`debug=True`が設定されているため、ファイルを変更すると自動的にサーバーが再起動します。
+Tailwind CSSを使用しているため、[frontend/src/App.jsx](frontend/src/App.jsx) 内で直接クラス名を変更できます。
 
-### カスタマイズ
+追加のカスタムスタイルが必要な場合は [frontend/tailwind.config.js](frontend/tailwind.config.js) を編集してください。
 
-- UI のカスタマイズ: [static/style.css](static/style.css)を編集
-- 機能の追加: [app.py](app.py)にエンドポイントを追加
-- フロントエンドのロジック: [static/script.js](static/script.js)を編集
+### 新しいコンポーネントの追加
+
+`frontend/src/` ディレクトリに新しいコンポーネントを作成し、`App.jsx` からインポートしてください。
+
+### APIエンドポイントの追加
+
+[app.py](app.py) に新しいルートを追加してください。
