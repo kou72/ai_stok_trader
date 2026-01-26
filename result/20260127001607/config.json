@@ -1,0 +1,28 @@
+{
+    "TIME_STEP": 480,
+    "TRAIN_RATIO": 0.7,
+    "VAL_RATIO": 0.15,
+    "TEST_RATIO": 0.15,
+    "FEATURE_COLS": [
+        "始値",
+        "高値",
+        "安値",
+        "終値",
+        "出来高",
+        "上昇率",
+        "MA5",
+        "MA20",
+        "MA60",
+        "volatility_20",
+        "RSI",
+        "日中変動率",
+        "前日比"
+    ],
+    "HIDDEN_SIZE": 64,
+    "NUM_LAYERS": 2,
+    "DROPOUT": 0.3,
+    "BATCH_SIZE": 128,
+    "EPOCHS": 5,
+    "LEARNING_RATE": 0.001,
+    "DEVICE": "cuda"
+}

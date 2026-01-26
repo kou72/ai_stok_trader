@@ -122,7 +122,7 @@ class Evaluator:
             recall = metrics['recall']
             print(f"\n【{name}データ】全体正解率: {metrics['accuracy']:.4f} ({metrics['accuracy']*100:.2f}%) | 基準超=1の正答率: {recall:.4f} ({recall*100:.2f}%)")
     
-    def visualize(self, results, train_losses, val_losses, epochs):
+    def visualize(self, results, train_losses, val_losses, train_precisions, val_precisions, epochs):
         """
         8. 結果の可視化
         
@@ -132,6 +132,8 @@ class Evaluator:
             評価結果
         train_losses, val_losses : list
             訓練・検証のLoss履歴
+        train_precisions, val_precisions : list
+            訓練・検証の的中率履歴
         epochs : int
             エポック数
         """
@@ -142,62 +144,32 @@ class Evaluator:
         plt.rcParams['font.sans-serif'] = ['MS Gothic', 'Yu Gothic', 'Hiragino Sans']
         plt.rcParams['axes.unicode_minus'] = False
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        # 2軸グラフで損失と的中率を同時に表示
+        fig, ax1 = plt.subplots(figsize=(12, 6))
         
-        # グラフ1: Lossの減衰
-        ax1.plot(range(1, epochs+1), train_losses, label='訓練Loss', marker='o', linewidth=2)
-        ax1.plot(range(1, epochs+1), val_losses, label='検証Loss', marker='s', linewidth=2)
+        # 左軸: Loss
+        color1 = 'tab:blue'
         ax1.set_xlabel('Epoch', fontsize=12)
-        ax1.set_ylabel('Loss', fontsize=12)
-        ax1.set_title('Lossの減衰', fontsize=14, fontweight='bold')
-        ax1.legend(fontsize=11)
+        ax1.set_ylabel('Loss', color=color1, fontsize=12)
+        line1 = ax1.plot(range(1, epochs+1), train_losses, color=color1, marker='o', label='訓練Loss', linewidth=2)
+        line2 = ax1.plot(range(1, epochs+1), val_losses, color='tab:cyan', marker='s', label='検証Loss', linewidth=2)
+        ax1.tick_params(axis='y', labelcolor=color1)
         ax1.grid(True, alpha=0.3)
         
-        # グラフ2: モデルが1と予測したときの的中率
-        datasets = ['訓練', '検証', 'テスト']
-        precisions = []
-        predicted_counts = []
-        correct_counts = []
+        # 右軸: 的中率
+        ax2 = ax1.twinx()
+        color2 = 'tab:red'
+        ax2.set_ylabel('的中率 (%)', color=color2, fontsize=12)
+        line3 = ax2.plot(range(1, epochs+1), [p*100 for p in train_precisions], color=color2, marker='^', label='訓練的中率', linewidth=2)
+        line4 = ax2.plot(range(1, epochs+1), [p*100 for p in val_precisions], color='tab:orange', marker='v', label='検証的中率', linewidth=2)
+        ax2.tick_params(axis='y', labelcolor=color2)
+        ax2.set_ylim(0, 100)
         
-        for name in datasets:
-            predictions = results[name]['predictions']
-            targets = results[name]['targets']
-            
-            # 予測クラス（閾値0.5）
-            pred_binary = (predictions > 0.5).astype(int)
-            
-            # モデルが1と予測したケース
-            predicted_positive = pred_binary == 1
-            n_predicted_positive = np.sum(predicted_positive)
-            
-            # その中で実際に1だったケース
-            true_positive = np.sum((pred_binary == 1) & (targets == 1))
-            
-            # 的中率（適合率）
-            precision = true_positive / n_predicted_positive if n_predicted_positive > 0 else 0
-            
-            precisions.append(precision)
-            predicted_counts.append(n_predicted_positive)
-            correct_counts.append(true_positive)
+        # 凡例を統合
+        lines = line1 + line2 + line3 + line4
+        labels = [l.get_label() for l in lines]
+        ax1.legend(lines, labels, loc='upper right', fontsize=10)
         
-        bars = ax2.bar(datasets, precisions, color=['skyblue', 'lightgreen', 'lightcoral'])
-        
-        ax2.set_ylabel('的中率', fontsize=12)
-        ax2.set_title('モデルが「1」と予測したときの的中率', fontsize=14, fontweight='bold')
-        ax2.set_ylim(0, 1.0)
-        ax2.grid(True, alpha=0.3, axis='y')
-        
-        # 数値ラベル
-        for i, (bar, precision) in enumerate(zip(bars, precisions)):
-            height = bar.get_height()
-            ax2.text(bar.get_x() + bar.get_width()/2., height + 0.02,
-                    f'{precision*100:.1f}%',
-                    ha='center', va='bottom', fontsize=13, fontweight='bold')
-            
-            # 予測数を棒の下に表示
-            ax2.text(bar.get_x() + bar.get_width()/2., -0.05,
-                    f'{predicted_counts[i]}件中\n{correct_counts[i]}件的中',
-                    ha='center', va='top', fontsize=10)
-        
+        plt.title('損失と的中率の推移', fontsize=14, fontweight='bold')
         plt.tight_layout()
         plt.show()

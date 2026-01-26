@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import numpy as np
 
 
 class Trainer:
@@ -27,6 +28,8 @@ class Trainer:
         self.optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         self.train_losses = []
         self.val_losses = []
+        self.train_precisions = []  # 訓練時の的中率
+        self.val_precisions = []    # 検証時の的中率
     
     def train(self, train_loader, val_loader, epochs, model_save_path):
         """
@@ -43,8 +46,8 @@ class Trainer:
         
         Returns:
         --------
-        train_losses, val_losses : list
-            訓練・検証のLoss履歴
+        train_losses, val_losses, train_precisions, val_precisions : list
+            訓練・検証のLoss履歴と的中率履歴
         """
         print("\n" + "=" * 80)
         print("6. モデル訓練")
@@ -60,39 +63,41 @@ class Trainer:
         
         for epoch in epoch_bar:
             # 訓練
-            train_loss = self._train_epoch(train_loader, epoch+1, epochs)
+            train_loss, train_precision = self._train_epoch(train_loader, epoch+1, epochs)
             self.train_losses.append(train_loss)
+            self.train_precisions.append(train_precision)
             
             # 検証
-            val_loss = self._validate_epoch(val_loader)
+            val_loss, val_precision = self._validate_epoch(val_loader)
             self.val_losses.append(val_loss)
+            self.val_precisions.append(val_precision)
             
             # ベストモデル保存
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 torch.save(self.model.state_dict(), model_save_path)
-                best_mark = " ⭐"
-            else:
-                best_mark = ""
             
             # 進捗バーの説明を更新
             epoch_bar.set_postfix({
                 'Train Loss': f'{train_loss:.4f}',
                 'Val Loss': f'{val_loss:.4f}',
-                'Best': f'{best_val_loss:.4f}'
+                'Train Prec': f'{train_precision*100:.1f}%',
+                'Val Prec': f'{val_precision*100:.1f}%'
             })
             
             # ログ出力
-            tqdm.write(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}{best_mark}")
+            tqdm.write(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Train Prec: {train_precision*100:.1f}%, Val Prec: {val_precision*100:.1f}%")
         
         print(f"\n訓練完了！ベストモデル保存済み（{model_save_path}）")
         
-        return self.train_losses, self.val_losses
+        return self.train_losses, self.val_losses, self.train_precisions, self.val_precisions
     
     def _train_epoch(self, train_loader, current_epoch, total_epochs):
         """1エポックの訓練"""
         self.model.train()
         total_loss = 0
+        all_predictions = []
+        all_targets = []
         
         # バッチごとの進捗バー
         batch_bar = tqdm(
@@ -113,15 +118,24 @@ class Trainer:
             
             total_loss += loss.item()
             
+            # 的中率計算用にデータを保存
+            all_predictions.extend(outputs.detach().cpu().numpy())
+            all_targets.extend(y_batch.cpu().numpy())
+            
             # 進捗バーの説明を更新
             batch_bar.set_postfix({'Loss': f'{loss.item():.4f}'})
         
-        return total_loss / len(train_loader)
+        # 的中率を計算
+        precision = self._calculate_precision(np.array(all_predictions), np.array(all_targets))
+        
+        return total_loss / len(train_loader), precision
     
     def _validate_epoch(self, val_loader):
         """1エポックの検証"""
         self.model.eval()
         total_loss = 0
+        all_predictions = []
+        all_targets = []
         
         # バッチごとの進捗バー
         batch_bar = tqdm(
@@ -138,7 +152,43 @@ class Trainer:
                 loss = self.criterion(outputs, y_batch)
                 total_loss += loss.item()
                 
+                # 的中率計算用にデータを保存
+                all_predictions.extend(outputs.cpu().numpy())
+                all_targets.extend(y_batch.cpu().numpy())
+                
                 # 進捗バーの説明を更新
                 batch_bar.set_postfix({'Loss': f'{loss.item():.4f}'})
         
-        return total_loss / len(val_loader)
+        # 的中率を計算
+        precision = self._calculate_precision(np.array(all_predictions), np.array(all_targets))
+        
+        return total_loss / len(val_loader), precision
+    
+    @staticmethod
+    def _calculate_precision(predictions, targets):
+        """
+        モデルが1と予測したときの的中率（適合率）を計算
+        
+        Parameters:
+        -----------
+        predictions : ndarray
+            予測確率
+        targets : ndarray
+            正解ラベル
+        
+        Returns:
+        --------
+        precision : float
+            的中率
+        """
+        pred_binary = (predictions > 0.5).astype(int)
+        predicted_positive = pred_binary == 1
+        n_predicted_positive = np.sum(predicted_positive)
+        
+        if n_predicted_positive == 0:
+            return 0.0
+        
+        true_positive = np.sum((pred_binary == 1) & (targets == 1))
+        precision = true_positive / n_predicted_positive
+        
+        return precision
