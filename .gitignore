@@ -1,0 +1,36 @@
+# Model files (exclude trained models but keep README)
+/model/*
+!/model/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+
+# Logs
+*.log
+logs/
