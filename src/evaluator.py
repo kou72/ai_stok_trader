@@ -103,7 +103,7 @@ class Evaluator:
             correct_1 = cm[1][1]
             recall = correct_1 / max(actual_1_total, 1)
             
-            print(f"\n  🎯 基準超=1の予測結果:")
+            print(f"\n  [基準超=1の予測結果]")
             print(f"    実際に上昇した日数:     {actual_1_total} 日")
             print(f"    正しく予測できた日数:   {correct_1} 日")
             print(f"    正答率 (再現率):        {recall:.4f} ({recall*100:.2f}%)")

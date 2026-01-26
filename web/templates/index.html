@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>株価予測モデル学習 - Webインターフェース</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>株価予測モデル学習</h1>
+            <p>LSTM株価予測モデルのWebインターフェース</p>
+        </header>
+
+        <main>
+            <!-- 学習設定セクション -->
+            <section class="config-section">
+                <h2>学習設定</h2>
+                <div class="form-group">
+                    <label for="csv-select">データセットを選択:</label>
+                    <select id="csv-select" class="form-control">
+                        <option value="">-- CSVディレクトリを選択 --</option>
+                        {% for csv_dir in csv_dirs %}
+                        <option value="{{ csv_dir }}">{{ csv_dir }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="button-group">
+                    <button id="start-btn" class="btn btn-primary">学習開始</button>
+                    <button id="clear-log-btn" class="btn btn-secondary">ログクリア</button>
+                </div>
+            </section>
+
+            <!-- ステータスセクション -->
+            <section class="status-section">
+                <h2>実行状態</h2>
+                <div id="status-display" class="status-display">
+                    <div class="status-item">
+                        <span class="status-label">状態:</span>
+                        <span id="status-text" class="status-value">待機中</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">開始時刻:</span>
+                        <span id="start-time" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">終了時刻:</span>
+                        <span id="end-time" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">結果保存先:</span>
+                        <span id="result-dir" class="status-value">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ログセクション -->
+            <section class="log-section">
+                <h2>実行ログ</h2>
+                <div id="log-container" class="log-container">
+                    <pre id="log-output">ログが表示されます...</pre>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 AI Stock Trader</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

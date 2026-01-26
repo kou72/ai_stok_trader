@@ -14,7 +14,7 @@ print(f"PyTorch: {torch.__version__}")
 print(f"CUDA利用可能: {torch.cuda.is_available()}")
 
 if not torch.cuda.is_available():
-    print("\n❌ CUDAが利用できません")
+    print("\n[ERROR] CUDAが利用できません")
     print("   原因:")
     print("   - CPU版PyTorchがインストールされている")
     print("   - CUDAドライバーがインストールされていない")
@@ -68,10 +68,10 @@ try:
     print(f"GPU演算時間: {gpu_time:.4f}秒")
     print(f"高速化率: {cpu_time/gpu_time:.2f}x")
     
-    print("\n✅ GPUは正常に動作しています！")
+    print("\n[OK] GPUは正常に動作しています！")
     
 except Exception as e:
-    print(f"\n❌ GPU演算エラー: {e}")
+    print(f"\n[ERROR] GPU演算エラー: {e}")
 
 # 6. メモリ情報
 print(f"\n【GPUメモリ情報】")

@@ -60,7 +60,7 @@ def main(csv_path, model_path):
             model_path = get_latest_model()
             print(f"最新モデルを使用: {model_path}\n")
         except FileNotFoundError as e:
-            print(f"❌ {e}")
+            print(f"[ERROR] {e}")
             return
     else:
         print(f"指定モデル: {model_path}\n")
@@ -104,12 +104,12 @@ def main(csv_path, model_path):
     # 学習済みモデルをロード
     try:
         model.load_state_dict(torch.load(model_path, map_location=Config.DEVICE))
-        print(f"✅ モデルをロードしました: {model_path}")
+        print(f"[OK] モデルをロードしました: {model_path}")
     except FileNotFoundError:
-        print(f"❌ モデルファイルが見つかりません: {model_path}")
+        print(f"[ERROR] モデルファイルが見つかりません: {model_path}")
         return
     except Exception as e:
-        print(f"❌ モデルのロードに失敗: {e}")
+        print(f"[ERROR] モデルのロードに失敗: {e}")
         return
     
     # 6. 評価
