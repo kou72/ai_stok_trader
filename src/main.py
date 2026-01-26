@@ -4,6 +4,9 @@
 import argparse
 import torch
 from torch.utils.data import DataLoader
+from datetime import datetime
+import os
+
 from config import Config
 from data_processor import DataProcessor
 from model import StockDataset, StockLSTM
@@ -24,6 +27,12 @@ def main(csv_path):
     print("LSTM株価予測モデル")
     print("=" * 80)
     print(f"使用デバイス: {Config.DEVICE}\n")
+    
+    # モデル保存パスを生成（タイムスタンプ付き）
+    os.makedirs('model', exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    model_save_path = f'model/best_model_{timestamp}.pth'
+    print(f"モデル保存先: {model_save_path}\n")
     
     # データ処理
     processor = DataProcessor(Config.FEATURE_COLS)
@@ -91,11 +100,11 @@ def main(csv_path):
     # 6. 訓練
     trainer = Trainer(model, Config.DEVICE, Config.LEARNING_RATE)
     train_losses, val_losses = trainer.train(
-        train_loader, val_loader, Config.EPOCHS, Config.MODEL_SAVE_PATH
+        train_loader, val_loader, Config.EPOCHS, model_save_path
     )
     
     # ベストモデルをロード
-    model.load_state_dict(torch.load(Config.MODEL_SAVE_PATH))
+    model.load_state_dict(torch.load(model_save_path))
     
     # 7. 評価
     evaluator = Evaluator(model, Config.DEVICE)
@@ -106,6 +115,7 @@ def main(csv_path):
     
     print("\n" + "=" * 80)
     print("完了！")
+    print(f"保存されたモデル: {model_save_path}")
     print("=" * 80)
 
 
@@ -114,7 +124,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--csv',
         type=str,
-        default='data/csv_20260126_003947',
+        default='data/csv_20260126_003947_20',
         help='CSVファイルのパス'
     )
     

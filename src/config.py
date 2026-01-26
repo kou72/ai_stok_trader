@@ -26,11 +26,11 @@ class Config:
     
     # 訓練設定
     BATCH_SIZE = 128
-    EPOCHS = 10
+    EPOCHS = 5
     LEARNING_RATE = 0.001
     
     # デバイス
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # ファイルパス
-    MODEL_SAVE_PATH = 'best_model.pth'
+    MODEL_SAVE_PATH = 'model/best_model.pth'

@@ -142,89 +142,62 @@ class Evaluator:
         plt.rcParams['font.sans-serif'] = ['MS Gothic', 'Yu Gothic', 'Hiragino Sans']
         plt.rcParams['axes.unicode_minus'] = False
         
-        # グラフ1: 学習曲線
-        self._plot_learning_curve(train_losses, val_losses, epochs)
-        
-        # グラフ2: 基準超=1の正答率
-        self._plot_recall_summary(results)
-    
-    @staticmethod
-    def _plot_learning_curve(train_losses, val_losses, epochs):
-        """学習曲線"""
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(range(1, epochs+1), train_losses, label='訓練Loss', marker='o')
-        ax.plot(range(1, epochs+1), val_losses, label='検証Loss', marker='s')
-        ax.set_xlabel('Epoch')
-        ax.set_ylabel('Loss')
-        ax.set_title('学習曲線（Loss）', fontsize=14, fontweight='bold')
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.show()
-    
-    @staticmethod
-    def _plot_recall_summary(results):
-        """基準超=1の正答率（再現率）のサマリー"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
-        # グラフ1: 基準超=1の正答率（再現率）の比較
-        datasets = ['訓練', '検証', 'テスト']
+        # グラフ1: Lossの減衰
+        ax1.plot(range(1, epochs+1), train_losses, label='訓練Loss', marker='o', linewidth=2)
+        ax1.plot(range(1, epochs+1), val_losses, label='検証Loss', marker='s', linewidth=2)
+        ax1.set_xlabel('Epoch', fontsize=12)
+        ax1.set_ylabel('Loss', fontsize=12)
+        ax1.set_title('Lossの減衰', fontsize=14, fontweight='bold')
+        ax1.legend(fontsize=11)
+        ax1.grid(True, alpha=0.3)
         
-        # 各データセットの基準超=1の正答率を計算
-        recalls = []
-        actual_counts = []
+        # グラフ2: モデルが1と予測したときの的中率
+        datasets = ['訓練', '検証', 'テスト']
+        precisions = []
+        predicted_counts = []
         correct_counts = []
         
         for name in datasets:
-            cm = results[name]['metrics']['confusion_matrix']
-            actual_1 = cm[1][0] + cm[1][1]  # 実際に1だった総数
-            correct_1 = cm[1][1]  # 正しく予測
-            recall = correct_1 / max(actual_1, 1)
+            predictions = results[name]['predictions']
+            targets = results[name]['targets']
             
-            recalls.append(recall)
-            actual_counts.append(actual_1)
-            correct_counts.append(correct_1)
+            # 予測クラス（閾値0.5）
+            pred_binary = (predictions > 0.5).astype(int)
+            
+            # モデルが1と予測したケース
+            predicted_positive = pred_binary == 1
+            n_predicted_positive = np.sum(predicted_positive)
+            
+            # その中で実際に1だったケース
+            true_positive = np.sum((pred_binary == 1) & (targets == 1))
+            
+            # 的中率（適合率）
+            precision = true_positive / n_predicted_positive if n_predicted_positive > 0 else 0
+            
+            precisions.append(precision)
+            predicted_counts.append(n_predicted_positive)
+            correct_counts.append(true_positive)
         
-        x = np.arange(len(datasets))
-        bars = ax1.bar(x, recalls, color=['skyblue', 'lightgreen', 'lightcoral'])
+        bars = ax2.bar(datasets, precisions, color=['skyblue', 'lightgreen', 'lightcoral'])
         
-        ax1.set_xlabel('データセット', fontsize=12)
-        ax1.set_ylabel('正答率（再現率）', fontsize=12)
-        ax1.set_title('基準超=1の正答率', fontsize=14, fontweight='bold')
-        ax1.set_xticks(x)
-        ax1.set_xticklabels(datasets)
-        ax1.set_ylim(0, 1.0)
-        ax1.grid(True, alpha=0.3, axis='y')
-        
-        # 数値ラベル
-        for i, (bar, recall) in enumerate(zip(bars, recalls)):
-            height = bar.get_height()
-            ax1.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{recall*100:.1f}%',
-                    ha='center', va='bottom', fontsize=12, fontweight='bold')
-        
-        # グラフ2: 基準超=1の詳細（件数）
-        x_pos = np.arange(len(datasets))
-        width = 0.35
-        
-        bars1 = ax2.bar(x_pos - width/2, actual_counts, width, label='実際に上昇', color='gold')
-        bars2 = ax2.bar(x_pos + width/2, correct_counts, width, label='正しく予測', color='lightcoral')
-        
-        ax2.set_xlabel('データセット', fontsize=12)
-        ax2.set_ylabel('日数', fontsize=12)
-        ax2.set_title('基準超=1の詳細', fontsize=14, fontweight='bold')
-        ax2.set_xticks(x_pos)
-        ax2.set_xticklabels(datasets)
-        ax2.legend()
+        ax2.set_ylabel('的中率', fontsize=12)
+        ax2.set_title('モデルが「1」と予測したときの的中率', fontsize=14, fontweight='bold')
+        ax2.set_ylim(0, 1.0)
         ax2.grid(True, alpha=0.3, axis='y')
         
         # 数値ラベル
-        for bars in [bars1, bars2]:
-            for bar in bars:
-                height = bar.get_height()
-                ax2.text(bar.get_x() + bar.get_width()/2., height,
-                        f'{int(height)}',
-                        ha='center', va='bottom', fontsize=10, fontweight='bold')
+        for i, (bar, precision) in enumerate(zip(bars, precisions)):
+            height = bar.get_height()
+            ax2.text(bar.get_x() + bar.get_width()/2., height + 0.02,
+                    f'{precision*100:.1f}%',
+                    ha='center', va='bottom', fontsize=13, fontweight='bold')
+            
+            # 予測数を棒の下に表示
+            ax2.text(bar.get_x() + bar.get_width()/2., -0.05,
+                    f'{predicted_counts[i]}件中\n{correct_counts[i]}件的中',
+                    ha='center', va='top', fontsize=10)
         
         plt.tight_layout()
         plt.show()
