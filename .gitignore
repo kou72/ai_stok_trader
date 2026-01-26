@@ -28,8 +28,6 @@ Thumbs.db
 
 # Data files
 *.csv
-*.xlsx
-*.xls
 /data/csv_*/
 
 # Logs
