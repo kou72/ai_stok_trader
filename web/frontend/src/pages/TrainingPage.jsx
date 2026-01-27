@@ -1,27 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
-
-// 画面サイズ取得用のカスタムフック
-function useWindowSize() {
-  const [windowSize, setWindowSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  })
-
-  useEffect(() => {
-    function handleResize() {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      })
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  return windowSize
-}
 
 function TrainingPage() {
   const [csvDirs, setCsvDirs] = useState([])
@@ -32,10 +9,20 @@ function TrainingPage() {
     end_time: null,
     result_dir: null,
   })
-  const [logs, setLogs] = useState('ログが表示されます...')
-  const logContainerRef = useRef(null)
+  const [progress, setProgress] = useState({
+    is_running: false,
+    current_section: 0,
+    total_sections: 3,
+    section_name: '',
+    section_percent: 0,
+    section_detail: '',
+    epoch: 0,
+    total_epochs: 0,
+    batch: 0,
+    total_batches: 0,
+  })
   const statusIntervalRef = useRef(null)
-  const { height } = useWindowSize()
+  const progressIntervalRef = useRef(null)
 
   // 初期化: CSV ディレクトリ一覧を取得
   useEffect(() => {
@@ -57,31 +44,22 @@ function TrainingPage() {
   useEffect(() => {
     if (status.is_running) {
       startStatusPolling()
+      startProgressPolling()
     } else {
       stopStatusPolling()
+      stopProgressPolling()
     }
-    return () => stopStatusPolling()
+    return () => {
+      stopStatusPolling()
+      stopProgressPolling()
+    }
   }, [status.is_running])
-
-  // ログの自動スクロール
-  useEffect(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
-    }
-  }, [logs])
 
   const fetchInitialStatus = async () => {
     try {
       const response = await fetch('/status')
       const data = await response.json()
       setStatus(data)
-
-      if (data.is_running) {
-        // 実行中の場合はログを取得
-        const logsResponse = await fetch('/logs')
-        const logsData = await logsResponse.json()
-        setLogs(logsData.logs.join('\n'))
-      }
     } catch (error) {
       console.error('初期ステータス取得エラー:', error)
     }
@@ -94,18 +72,7 @@ function TrainingPage() {
       try {
         const response = await fetch('/status')
         const data = await response.json()
-
         setStatus(data)
-
-        // 新しいログを追加
-        if (data.new_logs && data.new_logs.length > 0) {
-          setLogs(prevLogs => {
-            const currentLog = prevLogs === 'ログが表示されます...' || prevLogs === 'ログがクリアされました...'
-              ? ''
-              : prevLogs + '\n'
-            return currentLog + data.new_logs.join('\n')
-          })
-        }
       } catch (error) {
         console.error('ステータス取得エラー:', error)
       }
@@ -116,6 +83,27 @@ function TrainingPage() {
     if (statusIntervalRef.current) {
       clearInterval(statusIntervalRef.current)
       statusIntervalRef.current = null
+    }
+  }
+
+  const startProgressPolling = () => {
+    if (progressIntervalRef.current) return
+
+    progressIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch('/progress')
+        const data = await response.json()
+        setProgress(data)
+      } catch (error) {
+        console.error('進捗取得エラー:', error)
+      }
+    }, 200)
+  }
+
+  const stopProgressPolling = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
     }
   }
 
@@ -153,20 +141,18 @@ function TrainingPage() {
     }
   }
 
-  // 高さ計算
-  const headerHeight = 60
-  const controlHeight = 60
-  const padding = 32
-  const logHeight = height - headerHeight - controlHeight - padding
+  // セクション表示用
+  const sectionPercent = progress.section_percent || 0
 
   return (
-    <div className="h-screen bg-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-white flex flex-col">
       {/* コントロール部分 */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-gray-200" style={{ height: `${controlHeight}px` }}>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200">
         <select
           value={selectedCsv}
           onChange={(e) => setSelectedCsv(e.target.value)}
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+          disabled={status.is_running}
         >
           <option value="">データセットを選択</option>
           {csvDirs.map((dir) => (
@@ -182,16 +168,45 @@ function TrainingPage() {
         </button>
       </div>
 
-      {/* ログ表示 */}
-      <div
-        ref={logContainerRef}
-        className="flex-1 bg-gray-900 overflow-y-auto p-4"
-        style={{ height: `${logHeight}px` }}
-      >
-        <pre className="text-gray-300 font-mono text-xs whitespace-pre-wrap break-words">
-          {logs}
-        </pre>
-      </div>
+      {/* 進捗表示 */}
+      {status.is_running && (
+        <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-gray-800">
+                {progress.current_section}/{progress.total_sections} {progress.section_name}
+              </span>
+              {progress.section_detail && (
+                <span className="text-xs text-gray-500">
+                  - {progress.section_detail}
+                </span>
+              )}
+            </div>
+            <span className="text-sm text-blue-500 font-bold">
+              {sectionPercent.toFixed(0)}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className="bg-blue-500 h-3 rounded-full transition-all duration-200"
+              style={{ width: `${sectionPercent}%` }}
+            />
+          </div>
+          {progress.current_section === 2 && progress.total_epochs > 0 && (
+            <div className="mt-2 text-xs text-gray-500 text-right">
+              Epoch {progress.epoch}/{progress.total_epochs}
+              {progress.total_batches > 0 && ` - Batch ${progress.batch}/${progress.total_batches}`}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 待機状態 */}
+      {!status.is_running && (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-400 text-lg">データセットを選択して「GO」を押してください</p>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,23 +9,25 @@ import json
 from flask import Flask, request, jsonify, send_from_directory
 from datetime import datetime
 import threading
-import queue
 
 # プロジェクトルートをパスに追加
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+from progress import ProgressManager
+
 app = Flask(__name__, static_folder='static/dist', static_url_path='')
+
+# 進捗ファイルのパス
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '..')
+PROGRESS_FILE = os.path.join(PROJECT_ROOT, 'progress', 'progress.json')
 
 # 実行状態を管理
 training_status = {
     'is_running': False,
-    'current_log': [],
     'start_time': None,
     'end_time': None,
     'result_dir': None
 }
-
-log_queue = queue.Queue()
 
 
 def get_csv_directories():
@@ -57,19 +59,19 @@ def run_training(csv_path):
     try:
         training_status['is_running'] = True
         training_status['start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        training_status['current_log'] = []
         training_status['end_time'] = None
         training_status['result_dir'] = None
+
+        # 進捗ファイルをリセット
+        progress_manager = ProgressManager(PROGRESS_FILE)
+        progress_manager.reset()
 
         # プロジェクトルートディレクトリを取得
         project_root = os.path.join(os.path.dirname(__file__), '..')
         main_py_path = os.path.join(project_root, 'src', 'main.py')
 
-        # Pythonコマンドを実行
-        cmd = [sys.executable, main_py_path, '--csv', csv_path]
-
-        log_queue.put(f"[{training_status['start_time']}] 学習を開始します...")
-        log_queue.put(f"コマンド: {' '.join(cmd)}\n")
+        # Pythonコマンドを実行（進捗ファイルを指定）
+        cmd = [sys.executable, main_py_path, '--csv', csv_path, '--progress', PROGRESS_FILE]
 
         # 環境変数を設定（UTF-8エンコーディングを強制）
         env = os.environ.copy()
@@ -78,22 +80,11 @@ def run_training(csv_path):
         # プロセスを起動
         process = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             cwd=project_root,
-            universal_newlines=True,
-            env=env,
-            encoding='utf-8'
+            env=env
         )
-
-        # 出力をリアルタイムで読み取る
-        for line in process.stdout:
-            line = line.rstrip()
-            if line:
-                training_status['current_log'].append(line)
-                log_queue.put(line)
 
         # プロセスの終了を待つ
         process.wait()
@@ -101,21 +92,16 @@ def run_training(csv_path):
         training_status['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         if process.returncode == 0:
-            log_queue.put(f"\n[{training_status['end_time']}] 学習が正常に完了しました！")
-
             # 最新のresultディレクトリを取得
             result_base = os.path.join(project_root, 'result')
             result_dirs = glob.glob(os.path.join(result_base, '[0-9]*'))
             if result_dirs:
                 latest_result = max(result_dirs, key=os.path.getctime)
                 training_status['result_dir'] = os.path.basename(latest_result)
-                log_queue.put(f"結果保存先: result/{training_status['result_dir']}")
-        else:
-            log_queue.put(f"\n[{training_status['end_time']}] エラー: 学習が失敗しました（終了コード: {process.returncode}）")
 
     except Exception as e:
         training_status['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_queue.put(f"\n[{training_status['end_time']}] エラー: {str(e)}")
+        print(f"エラー: {str(e)}")
 
     finally:
         training_status['is_running'] = False
@@ -165,31 +151,21 @@ def status():
     """
     学習の状態を取得
     """
-    # 新しいログを取得
-    new_logs = []
-    while not log_queue.empty():
-        try:
-            new_logs.append(log_queue.get_nowait())
-        except queue.Empty:
-            break
-
     return jsonify({
         'is_running': training_status['is_running'],
         'start_time': training_status['start_time'],
         'end_time': training_status['end_time'],
-        'result_dir': training_status['result_dir'],
-        'new_logs': new_logs
+        'result_dir': training_status['result_dir']
     })
 
 
-@app.route('/logs')
-def logs():
+@app.route('/progress')
+def progress():
     """
-    全ログを取得
+    学習の進捗を取得
     """
-    return jsonify({
-        'logs': training_status['current_log']
-    })
+    progress_data = ProgressManager.load(PROGRESS_FILE)
+    return jsonify(progress_data)
 
 
 @app.route('/api/results')
