@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation, Pagination } from 'swiper/modules'
+import { Pagination } from 'swiper/modules'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -104,7 +104,7 @@ function ResultsPage() {
         <div className="container mx-auto px-4 py-8">
           <Link
             to="/"
-            className="inline-block mb-6 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            className="inline-block mb-6 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700 transition"
           >
             ← 学習ページに戻る
           </Link>
@@ -121,10 +121,9 @@ function ResultsPage() {
       <div className="container mx-auto px-4 h-full flex flex-col max-w-6xl">
         {/* カルーセル */}
         <Swiper
-          modules={[Navigation, Pagination]}
+          modules={[Pagination]}
           spaceBetween={50}
           slidesPerView={1}
-          navigation
           pagination={{ clickable: true }}
           className="results-swiper w-full flex-1"
         >
@@ -153,8 +152,8 @@ function ResultSlide({ result, detail, viewportHeight }) {
 
   // セクションの高さ配分（vh単位ではなくpx）
   const idHeight = 20
-  const barChartHeight = Math.floor(availableHeight * 0.35)
-  const lineChartHeight = Math.floor(availableHeight * 0.35)
+  const barChartHeight = Math.floor(availableHeight * 0.30)
+  const lineChartHeight = Math.floor(availableHeight * 0.45)
   const configHeight = availableHeight - idHeight - barChartHeight - lineChartHeight - 16 * 2 // gap分を引く
 
   // 棒グラフデータ（results.json）
@@ -327,9 +326,12 @@ function ResultSlide({ result, detail, viewportHeight }) {
 
   return (
     <div className="h-full flex flex-col py-2 overflow-hidden">
-      {/* ヘッダー（戻るボタン + ID） */}
+      {/* ヘッダー（ID + 処理時間） */}
       <div className="flex-shrink-0 flex justify-between items-center px-2 mb-2" style={{ height: `${idHeight}px` }}>
         <p className="text-gray-600 text-xs">ID: {result.id}</p>
+        <p className="text-blue-500 text-xs font-semibold">
+          処理時間: {detail.time_log?.total?.formatted || '-'}
+        </p>
       </div>
 
       {/* 棒グラフ（正答率） */}
@@ -343,7 +345,7 @@ function ResultSlide({ result, detail, viewportHeight }) {
             if (!data) return null
             return (
               <div key={name} className="bg-gray-50 p-2 rounded">
-                <div className="text-purple-600 font-bold text-sm">
+                <div className="text-blue-500 font-bold text-sm">
                   {data.precision_percent}
                 </div>
                 <div className="text-xs text-gray-500">
@@ -362,55 +364,24 @@ function ResultSlide({ result, detail, viewportHeight }) {
         </div>
       </div>
 
-      {/* Config と TimeLog（2列、スクロール可能） */}
-      <div className="flex-1 grid grid-cols-2 gap-2 overflow-hidden" style={{ height: `${configHeight}px` }}>
-        {/* Config */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm overflow-y-auto">
-          <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">学習設定</h3>
-          <div className="space-y-1 text-xs">
-            {detail.config && Object.entries({
-              'エポック数': detail.config.EPOCHS,
-              'バッチサイズ': detail.config.BATCH_SIZE,
-              '学習率': detail.config.LEARNING_RATE,
-              '隠れ層サイズ': detail.config.HIDDEN_SIZE,
-              'LSTM層数': detail.config.NUM_LAYERS,
-              'Dropout': detail.config.DROPOUT,
-              'デバイス': detail.config.DEVICE,
-            }).map(([key, value]) => (
-              <div key={key} className="flex justify-between py-1 border-b border-gray-100">
-                <span className="text-gray-600">{key}:</span>
-                <span className="font-semibold text-gray-800">{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* TimeLog */}
-        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm overflow-y-auto">
-          <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">処理時間</h3>
-          <div className="space-y-1 text-xs">
-            {detail.time_log && Object.entries({
-              'CSV読込': detail.time_log['1_load_csv']?.formatted,
-              '前処理': detail.time_log['2_preprocess_and_normalize']?.formatted,
-              'シーケンス': detail.time_log['3_create_sequences']?.formatted,
-              'データ分割': detail.time_log['4_split_data']?.formatted,
-              'モデル構築': detail.time_log['6_build_model']?.formatted,
-              '訓練': detail.time_log['7_train']?.formatted,
-              '評価': detail.time_log['8_evaluate']?.formatted,
-              '可視化': detail.time_log['9_visualize']?.formatted,
-              '合計': detail.time_log.total?.formatted,
-            }).map(([key, value]) => {
-              if (!value) return null
-              return (
-                <div key={key} className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-600">{key}:</span>
-                  <span className={`font-semibold ${key === '合計' ? 'text-purple-600' : 'text-gray-800'}`}>
-                    {value}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+      {/* 学習設定（2列グリッド） */}
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg p-3 shadow-sm overflow-y-auto" style={{ height: `${configHeight}px` }}>
+        <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">学習設定</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          {detail.config && Object.entries({
+            'エポック数': detail.config.EPOCHS,
+            'バッチサイズ': detail.config.BATCH_SIZE,
+            '学習率': detail.config.LEARNING_RATE,
+            '隠れ層サイズ': detail.config.HIDDEN_SIZE,
+            'LSTM層数': detail.config.NUM_LAYERS,
+            'Dropout': detail.config.DROPOUT,
+            'デバイス': detail.config.DEVICE,
+          }).map(([key, value]) => (
+            <div key={key} className="flex justify-between py-1 border-b border-gray-100">
+              <span className="text-gray-600">{key}:</span>
+              <span className="font-semibold text-gray-800">{value}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>

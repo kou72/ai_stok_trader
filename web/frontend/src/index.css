@@ -23,15 +23,15 @@ code {
 
 .results-swiper .swiper-button-next,
 .results-swiper .swiper-button-prev {
-  color: #7c3aed;
+  color: #3b82f6;
 }
 
 .results-swiper .swiper-pagination-bullet {
-  background: #7c3aed;
+  background: #3b82f6;
 }
 
 .results-swiper .swiper-pagination-bullet-active {
-  background: #5b21b6;
+  background: #2563eb;
 }
 
 @keyframes pulse-slow {
