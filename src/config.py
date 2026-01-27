@@ -11,7 +11,11 @@ class Config:
     TRAIN_RATIO = 0.7
     VAL_RATIO = 0.15
     TEST_RATIO = 0.15
-    
+
+    # 基準超判定の閾値（上昇率が何%以上で基準超=1とするか）
+    # 例: 1.0 → 終値が始値より1%以上上昇していれば基準超=1
+    PRICE_INCREASE_THRESHOLD = 1.0
+
     # 特徴量
     FEATURE_COLS = [
         '始値', '高値', '安値', '終値', '出来高',

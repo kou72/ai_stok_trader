@@ -372,6 +372,7 @@ function ResultSlide({ result, detail, viewportHeight }) {
             'エポック数': detail.config.EPOCHS,
             'バッチサイズ': detail.config.BATCH_SIZE,
             '学習率': detail.config.LEARNING_RATE,
+            '基準超閾値': detail.config.PRICE_INCREASE_THRESHOLD != null ? `${detail.config.PRICE_INCREASE_THRESHOLD}%` : '-',
             '隠れ層サイズ': detail.config.HIDDEN_SIZE,
             'LSTM層数': detail.config.NUM_LAYERS,
             'Dropout': detail.config.DROPOUT,

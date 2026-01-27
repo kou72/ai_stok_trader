@@ -32,6 +32,7 @@ def save_config_to_json(result_dir):
         'TRAIN_RATIO': Config.TRAIN_RATIO,
         'VAL_RATIO': Config.VAL_RATIO,
         'TEST_RATIO': Config.TEST_RATIO,
+        'PRICE_INCREASE_THRESHOLD': Config.PRICE_INCREASE_THRESHOLD,
         'FEATURE_COLS': Config.FEATURE_COLS,
         'HIDDEN_SIZE': Config.HIDDEN_SIZE,
         'NUM_LAYERS': Config.NUM_LAYERS,
@@ -229,7 +230,7 @@ def main(csv_path):
     save_config_to_json(result_dir)
     
     # データ処理
-    processor = DataProcessor(Config.FEATURE_COLS)
+    processor = DataProcessor(Config.FEATURE_COLS, Config.PRICE_INCREASE_THRESHOLD)
     
     # 1. CSVデータ読み込み
     start_time = time.time()
@@ -403,7 +404,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--csv',
         type=str,
-        default='data/csv_20260126_003947',
+        default='data/csv_20260128_015254_20',
         help='CSVファイルのパス'
     )
     

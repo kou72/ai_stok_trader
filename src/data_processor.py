@@ -9,15 +9,18 @@ from tqdm import tqdm
 
 class DataProcessor:
     """株価データの前処理とシーケンス作成"""
-    
-    def __init__(self, feature_cols):
+
+    def __init__(self, feature_cols, price_increase_threshold=1.0):
         """
         Parameters:
         -----------
         feature_cols : list
             使用する特徴量のリスト
+        price_increase_threshold : float
+            基準超の閾値（%）。上昇率がこの値以上なら基準超=1
         """
         self.feature_cols = feature_cols
+        self.price_increase_threshold = price_increase_threshold
         self.scaler = StandardScaler()
 
     def load_csv(self, csv_path):
@@ -104,9 +107,9 @@ class DataProcessor:
         
         # 日付を日付型に変換
         df['日付'] = pd.to_datetime(df['日付'], errors='coerce')
-        
+
         # 数値列を数値型に変換
-        numeric_cols = ['始値', '高値', '安値', '終値', '出来高', '上昇率', '基準超']
+        numeric_cols = ['始値', '高値', '安値', '終値', '出来高']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         
@@ -158,21 +161,27 @@ class DataProcessor:
     
     def _add_features(self, df):
         """特徴量エンジニアリング"""
+        # 上昇率を計算（終値/始値 - 1）* 100 でパーセント表記
+        df['上昇率'] = (df['終値'] / df['始値'] - 1) * 100
+
+        # 基準超を計算（上昇率が閾値以上なら1）
+        df['基準超'] = (df['上昇率'] >= self.price_increase_threshold).astype(int)
+
         # 移動平均
         df['MA5'] = df['終値'].rolling(window=5).mean()
         df['MA20'] = df['終値'].rolling(window=20).mean()
         df['MA60'] = df['終値'].rolling(window=60).mean()
-        
+
         # ボラティリティ
         df['volatility_20'] = df['上昇率'].rolling(window=20).std()
-        
+
         # RSI
         df['RSI'] = self._calculate_rsi(df['終値'])
-        
+
         # その他
         df['日中変動率'] = (df['高値'] - df['安値']) / df['始値']
         df['前日比'] = df['終値'].pct_change()
-        
+
         return df
     
     @staticmethod
