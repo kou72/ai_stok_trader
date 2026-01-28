@@ -249,7 +249,7 @@ function TrainingSection() {
               value={params.epochs}
               onChange={(v) => handleParamChange('epochs', v)}
               min={1}
-              max={100}
+              max={200}
               step={1}
               disabled={status.is_running}
             />
