@@ -215,22 +215,32 @@ function ResultSlide({ result, detail, viewportHeight }) {
         </div>
       </div>
 
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg p-3 shadow-sm overflow-y-auto" style={{ height: `${configHeight}px` }}>
-        <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">学習設定</h3>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg p-2 shadow-sm" style={{ height: `${configHeight}px` }}>
+        <h3 className="text-xs font-bold text-gray-800 mb-1 border-b pb-1">学習設定</h3>
+        {/* データとベースモデルは1列表示（長い文字列対応） */}
+        <div className="space-y-0.5 text-[10px] mb-1">
+          <div className="flex justify-between border-b border-gray-100 py-0.5">
+            <span className="text-gray-600 flex-shrink-0">データ:</span>
+            <span className="font-semibold text-gray-800 truncate ml-2">{detail.config?.DATA_SOURCE || '-'}</span>
+          </div>
+          <div className="flex justify-between border-b border-gray-100 py-0.5">
+            <span className="text-gray-600 flex-shrink-0">ベースモデル:</span>
+            <span className="font-semibold text-gray-800 truncate ml-2">{detail.config?.BASE_MODEL || '新規'}</span>
+          </div>
+        </div>
+        {/* その他のパラメータは2列表示 */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
           {detail.config && Object.entries({
-            'データ': detail.config.DATA_SOURCE || '-',
-            'ベースモデル': detail.config.BASE_MODEL || '新規',
             'タイムステップ': detail.config.TIME_STEP,
             'エポック数': detail.config.EPOCHS,
             'バッチサイズ': detail.config.BATCH_SIZE,
             '学習率': detail.config.LEARNING_RATE,
-            '基準超閾値': detail.config.PRICE_INCREASE_THRESHOLD != null ? `${detail.config.PRICE_INCREASE_THRESHOLD}%` : '-',
+            '株価上昇率': detail.config.PRICE_INCREASE_THRESHOLD != null ? `${detail.config.PRICE_INCREASE_THRESHOLD}%` : '-',
             '隠れ層サイズ': detail.config.HIDDEN_SIZE,
             'LSTM層数': detail.config.NUM_LAYERS,
             'Dropout': detail.config.DROPOUT,
           }).map(([key, value]) => (
-            <div key={key} className="flex justify-between py-1 border-b border-gray-100">
+            <div key={key} className="flex justify-between py-0.5 border-b border-gray-100">
               <span className="text-gray-600">{key}:</span>
               <span className="font-semibold text-gray-800">{value}</span>
             </div>
@@ -278,7 +288,7 @@ function ResultsSection() {
 
   if (loading) {
     return (
-      <div className="h-full bg-white flex items-center justify-center">
+      <div className="h-full bg-gray-50 flex items-center justify-center">
         <div className="text-gray-500">読み込み中...</div>
       </div>
     )
@@ -286,7 +296,7 @@ function ResultsSection() {
 
   if (results.length === 0) {
     return (
-      <div className="h-full bg-white flex flex-col items-center justify-center px-4">
+      <div className="h-full bg-gray-50 flex flex-col items-center justify-center px-4">
         <p className="text-gray-400 text-lg mb-4">学習結果がまだありません</p>
         <p className="text-gray-300 text-sm">下にスワイプして学習を開始</p>
       </div>
@@ -294,7 +304,7 @@ function ResultsSection() {
   }
 
   return (
-    <div className="h-full bg-white overflow-hidden">
+    <div className="h-full bg-gray-50 overflow-hidden">
       <div className="h-full flex flex-col max-w-6xl mx-auto px-4">
         <Swiper
           modules={[Pagination]}

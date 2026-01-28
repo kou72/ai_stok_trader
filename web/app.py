@@ -62,7 +62,7 @@ def get_model_files():
     return model_files
 
 
-def run_training(csv_path, base_model=None):
+def run_training(csv_path, params=None):
     """
     学習処理を別スレッドで実行
 
@@ -70,10 +70,13 @@ def run_training(csv_path, base_model=None):
     -----------
     csv_path : str
         CSVディレクトリのパス
-    base_model : str, optional
-        ベースモデルのファイル名
+    params : dict, optional
+        学習パラメータ
     """
     global training_status
+
+    if params is None:
+        params = {}
 
     try:
         training_status['is_running'] = True
@@ -89,13 +92,31 @@ def run_training(csv_path, base_model=None):
         project_root = os.path.join(os.path.dirname(__file__), '..')
         main_py_path = os.path.join(project_root, 'src', 'main.py')
 
-        # Pythonコマンドを実行（進捗ファイルを指定）
-        cmd = [sys.executable, main_py_path, '--csv', csv_path, '--progress', PROGRESS_FILE]
+        # Pythonコマンドを実行（進捗ファイルを指定、グラフ表示はスキップ）
+        cmd = [sys.executable, main_py_path, '--csv', csv_path, '--progress', PROGRESS_FILE, '--no-display']
 
         # ベースモデルが指定されている場合は追加
-        if base_model:
-            base_model_path = os.path.join('model', base_model)
+        if params.get('base_model'):
+            base_model_path = os.path.join('model', params['base_model'])
             cmd.extend(['--base-model', base_model_path])
+
+        # 各パラメータを追加
+        if params.get('time_step') is not None:
+            cmd.extend(['--time-step', str(params['time_step'])])
+        if params.get('epochs') is not None:
+            cmd.extend(['--epochs', str(params['epochs'])])
+        if params.get('batch_size') is not None:
+            cmd.extend(['--batch-size', str(params['batch_size'])])
+        if params.get('learning_rate') is not None:
+            cmd.extend(['--learning-rate', str(params['learning_rate'])])
+        if params.get('price_threshold') is not None:
+            cmd.extend(['--price-threshold', str(params['price_threshold'])])
+        if params.get('hidden_size') is not None:
+            cmd.extend(['--hidden-size', str(params['hidden_size'])])
+        if params.get('num_layers') is not None:
+            cmd.extend(['--num-layers', str(params['num_layers'])])
+        if params.get('dropout') is not None:
+            cmd.extend(['--dropout', str(params['dropout'])])
 
         # 環境変数を設定（UTF-8エンコーディングを強制）
         env = os.environ.copy()
@@ -170,10 +191,22 @@ def start_training():
         return jsonify({'error': 'CSVディレクトリを選択してください'}), 400
 
     csv_path = os.path.join('data', csv_dir)
-    base_model = request.json.get('base_model')  # オプショナル
+
+    # パラメータを取得
+    params = {
+        'base_model': request.json.get('base_model'),
+        'time_step': request.json.get('time_step'),
+        'epochs': request.json.get('epochs'),
+        'batch_size': request.json.get('batch_size'),
+        'learning_rate': request.json.get('learning_rate'),
+        'price_threshold': request.json.get('price_threshold'),
+        'hidden_size': request.json.get('hidden_size'),
+        'num_layers': request.json.get('num_layers'),
+        'dropout': request.json.get('dropout'),
+    }
 
     # 学習を別スレッドで実行
-    thread = threading.Thread(target=run_training, args=(csv_path, base_model))
+    thread = threading.Thread(target=run_training, args=(csv_path, params))
     thread.daemon = True
     thread.start()
 

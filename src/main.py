@@ -199,7 +199,7 @@ def calculate_final_precision(results):
     return precision_dict
 
 
-def main(csv_path, progress_file=None, base_model=None):
+def main(csv_path, progress_file=None, base_model=None, no_display=False):
     """
     メイン処理
 
@@ -211,6 +211,8 @@ def main(csv_path, progress_file=None, base_model=None):
         進捗ファイルのパス（Noneの場合は進捗管理なし）
     base_model : str
         ベースモデルのパス（Noneの場合は新規学習）
+    no_display : bool
+        Trueの場合、グラフ表示をスキップ
     """
     # 進捗管理の初期化
     progress = None
@@ -444,13 +446,16 @@ def main(csv_path, progress_file=None, base_model=None):
     save_history_to_csv(train_losses, val_losses, train_precisions, val_precisions, result_dir)
 
     # 可視化
-    print("\n[2/2] 結果の可視化...")
-    step_start = time.time()
-    evaluator.visualize(results, train_losses, val_losses, train_precisions, val_precisions, Config.EPOCHS)
-    time_log['eval_visualize'] = {
-        'seconds': time.time() - step_start,
-        'formatted': format_time(time.time() - step_start)
-    }
+    if not no_display:
+        print("\n[2/2] 結果の可視化...")
+        step_start = time.time()
+        evaluator.visualize(results, train_losses, val_losses, train_precisions, val_precisions, Config.EPOCHS)
+        time_log['eval_visualize'] = {
+            'seconds': time.time() - step_start,
+            'formatted': format_time(time.time() - step_start)
+        }
+    else:
+        print("\n[2/2] グラフ表示をスキップ")
     if progress:
         progress.update_section_progress(100)
 
@@ -516,6 +521,78 @@ if __name__ == '__main__':
         default=None,
         help='ベースモデルのパス'
     )
+    parser.add_argument(
+        '--time-step',
+        type=int,
+        default=None,
+        help='タイムステップ'
+    )
+    parser.add_argument(
+        '--epochs',
+        type=int,
+        default=None,
+        help='エポック数'
+    )
+    parser.add_argument(
+        '--batch-size',
+        type=int,
+        default=None,
+        help='バッチサイズ'
+    )
+    parser.add_argument(
+        '--learning-rate',
+        type=float,
+        default=None,
+        help='学習率'
+    )
+    parser.add_argument(
+        '--price-threshold',
+        type=float,
+        default=None,
+        help='株価上昇率閾値'
+    )
+    parser.add_argument(
+        '--hidden-size',
+        type=int,
+        default=None,
+        help='隠れ層サイズ'
+    )
+    parser.add_argument(
+        '--num-layers',
+        type=int,
+        default=None,
+        help='LSTM層数'
+    )
+    parser.add_argument(
+        '--dropout',
+        type=float,
+        default=None,
+        help='ドロップアウト率'
+    )
+    parser.add_argument(
+        '--no-display',
+        action='store_true',
+        help='グラフ表示をスキップ'
+    )
 
     args = parser.parse_args()
-    main(args.csv, args.progress, args.base_model)
+
+    # コマンドライン引数でConfigを上書き
+    if args.time_step is not None:
+        Config.TIME_STEP = args.time_step
+    if args.epochs is not None:
+        Config.EPOCHS = args.epochs
+    if args.batch_size is not None:
+        Config.BATCH_SIZE = args.batch_size
+    if args.learning_rate is not None:
+        Config.LEARNING_RATE = args.learning_rate
+    if args.price_threshold is not None:
+        Config.PRICE_INCREASE_THRESHOLD = args.price_threshold
+    if args.hidden_size is not None:
+        Config.HIDDEN_SIZE = args.hidden_size
+    if args.num_layers is not None:
+        Config.NUM_LAYERS = args.num_layers
+    if args.dropout is not None:
+        Config.DROPOUT = args.dropout
+
+    main(args.csv, args.progress, args.base_model, args.no_display)

@@ -1,10 +1,46 @@
 import { useState, useEffect, useRef } from 'react'
 
+// スライダーコンポーネント
+function ParamSlider({ label, value, onChange, min, max, step, disabled, format }) {
+  const displayValue = format ? format(value) : value
+  return (
+    <div className="flex flex-col gap-1 max-w-md mx-auto w-full">
+      <div className="flex justify-between items-center">
+        <label className="text-xs text-gray-600">{label}</label>
+        <span className="text-xs font-semibold text-blue-600">{displayValue}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        disabled={disabled}
+        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 disabled:cursor-not-allowed slider-thumb"
+      />
+    </div>
+  )
+}
+
 function TrainingSection() {
   const [csvDirs, setCsvDirs] = useState([])
   const [models, setModels] = useState([])
   const [selectedCsv, setSelectedCsv] = useState('')
   const [selectedModel, setSelectedModel] = useState('')
+
+  // 学習パラメータ
+  const [params, setParams] = useState({
+    timeStep: 480,
+    epochs: 5,
+    batchSize: 128,
+    learningRate: 0.001,
+    priceThreshold: 1.0,
+    hiddenSize: 64,
+    numLayers: 2,
+    dropout: 0.3,
+  })
+
   const [status, setStatus] = useState({
     is_running: false,
     start_time: null,
@@ -116,6 +152,10 @@ function TrainingSection() {
     }
   }
 
+  const handleParamChange = (key, value) => {
+    setParams(prev => ({ ...prev, [key]: value }))
+  }
+
   const handleStartTraining = async () => {
     if (!selectedCsv) {
       alert('CSVディレクトリを選択してください')
@@ -128,7 +168,17 @@ function TrainingSection() {
     }
 
     try {
-      const requestBody = { csv_dir: selectedCsv }
+      const requestBody = {
+        csv_dir: selectedCsv,
+        time_step: params.timeStep,
+        epochs: params.epochs,
+        batch_size: params.batchSize,
+        learning_rate: params.learningRate,
+        price_threshold: params.priceThreshold,
+        hidden_size: params.hiddenSize,
+        num_layers: params.numLayers,
+        dropout: params.dropout,
+      }
       if (selectedModel) {
         requestBody.base_model = selectedModel
       }
@@ -154,14 +204,14 @@ function TrainingSection() {
   const sectionPercent = progress.section_percent || 0
 
   return (
-    <div className="h-full bg-white flex flex-col">
-      {/* コントロール部分 */}
-      <div className="px-4 py-3 border-b border-gray-200 space-y-2">
-        <div className="flex items-center gap-2">
+    <div className="h-full bg-gray-50 p-4">
+      <div className="h-full bg-white rounded-xl shadow-sm flex flex-col overflow-hidden">
+        {/* プルダウン選択 */}
+        <div className="px-4 pt-4 space-y-2">
           <select
             value={selectedCsv}
             onChange={(e) => setSelectedCsv(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
             disabled={status.is_running}
           >
             <option value="">データセットを選択</option>
@@ -169,19 +219,10 @@ function TrainingSection() {
               <option key={dir} value={dir}>{dir}</option>
             ))}
           </select>
-          <button
-            onClick={handleStartTraining}
-            disabled={status.is_running || !selectedCsv}
-            className="px-6 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-          >
-            GO
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
             disabled={status.is_running}
           >
             <option value="">ベースモデル: なし（新規学習）</option>
@@ -190,44 +231,134 @@ function TrainingSection() {
             ))}
           </select>
         </div>
-      </div>
 
-      {/* 進捗表示 */}
-      {status.is_running && (
-        <div className="px-4 py-4 bg-gray-50 border-b border-gray-200">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-gray-800">
-                {progress.current_section}/{progress.total_sections} {progress.section_name}
-              </span>
-              {progress.section_detail && (
-                <span className="text-xs text-gray-500">- {progress.section_detail}</span>
-              )}
-            </div>
-            <span className="text-sm text-blue-500 font-bold">{sectionPercent.toFixed(0)}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div
-              className="bg-blue-500 h-3 rounded-full transition-all duration-200"
-              style={{ width: `${sectionPercent}%` }}
+        {/* パラメータスライダー */}
+        <div className="flex-1 px-4 py-4 overflow-y-auto">
+          <div className="flex flex-col gap-5">
+            <ParamSlider
+              label="タイムステップ"
+              value={params.timeStep}
+              onChange={(v) => handleParamChange('timeStep', v)}
+              min={3}
+              max={600}
+              step={3}
+              disabled={status.is_running}
+            />
+            <ParamSlider
+              label="エポック数"
+              value={params.epochs}
+              onChange={(v) => handleParamChange('epochs', v)}
+              min={1}
+              max={100}
+              step={1}
+              disabled={status.is_running}
+            />
+            <ParamSlider
+              label="バッチサイズ"
+              value={params.batchSize}
+              onChange={(v) => handleParamChange('batchSize', v)}
+              min={16}
+              max={512}
+              step={16}
+              disabled={status.is_running}
+            />
+            <ParamSlider
+              label="学習率"
+              value={params.learningRate}
+              onChange={(v) => handleParamChange('learningRate', v)}
+              min={0.0001}
+              max={0.01}
+              step={0.0001}
+              disabled={status.is_running}
+              format={(v) => v.toFixed(4)}
+            />
+            <ParamSlider
+              label="株価上昇率(%)"
+              value={params.priceThreshold}
+              onChange={(v) => handleParamChange('priceThreshold', v)}
+              min={0.1}
+              max={5.0}
+              step={0.1}
+              disabled={status.is_running}
+              format={(v) => v.toFixed(1)}
+            />
+            <ParamSlider
+              label="隠れ層サイズ"
+              value={params.hiddenSize}
+              onChange={(v) => handleParamChange('hiddenSize', v)}
+              min={16}
+              max={256}
+              step={16}
+              disabled={status.is_running}
+            />
+            <ParamSlider
+              label="LSTM層数"
+              value={params.numLayers}
+              onChange={(v) => handleParamChange('numLayers', v)}
+              min={1}
+              max={5}
+              step={1}
+              disabled={status.is_running}
+            />
+            <ParamSlider
+              label="ドロップアウト"
+              value={params.dropout}
+              onChange={(v) => handleParamChange('dropout', v)}
+              min={0}
+              max={0.9}
+              step={0.1}
+              disabled={status.is_running}
+              format={(v) => v.toFixed(1)}
             />
           </div>
-          {progress.current_section === 2 && progress.total_epochs > 0 && (
-            <div className="mt-2 text-xs text-gray-500 text-right">
-              Epoch {progress.epoch}/{progress.total_epochs}
-              {progress.total_batches > 0 && ` - Batch ${progress.batch}/${progress.total_batches}`}
+        </div>
+
+        {/* GOボタン */}
+        <div className="flex justify-center py-4">
+          <button
+            onClick={handleStartTraining}
+            disabled={status.is_running || !selectedCsv}
+            className="w-16 h-16 rounded-full bg-blue-500 text-white font-bold text-lg shadow-lg hover:bg-blue-600 active:scale-95 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed transition-all flex items-center justify-center"
+          >
+            GO
+          </button>
+        </div>
+
+        {/* 進捗表示（カード内最下部） */}
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+          {status.is_running ? (
+            <>
+              <div className="flex justify-between items-center mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-800">
+                    {progress.current_section}/{progress.total_sections} {progress.section_name}
+                  </span>
+                  {progress.section_detail && (
+                    <span className="text-xs text-gray-500">- {progress.section_detail}</span>
+                  )}
+                </div>
+                <span className="text-xs text-blue-500 font-bold">{sectionPercent.toFixed(0)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-200"
+                  style={{ width: `${sectionPercent}%` }}
+                />
+              </div>
+              {progress.current_section === 2 && progress.total_epochs > 0 && (
+                <div className="mt-1 text-xs text-gray-500 text-right">
+                  Epoch {progress.epoch}/{progress.total_epochs}
+                  {progress.total_batches > 0 && ` - Batch ${progress.batch}/${progress.total_batches}`}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-xs text-gray-400 text-center">
+              学習待機中
             </div>
           )}
         </div>
-      )}
-
-      {/* 待機状態 */}
-      {!status.is_running && (
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <p className="text-gray-400 text-lg mb-4">データセットを選択して「GO」を押してください</p>
-          <p className="text-gray-300 text-sm">上にスワイプして結果を確認</p>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

@@ -62,3 +62,8 @@ html, body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+
+/* スライダーのカスタムスタイル（タッチ操作の制御のみ） */
+.slider-thumb {
+  touch-action: none;
+}
