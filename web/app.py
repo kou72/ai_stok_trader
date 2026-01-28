@@ -358,8 +358,8 @@ if __name__ == '__main__':
     print("株価予測モデル学習 Webインターフェース")
     print("=" * 80)
     print("\nブラウザで以下のURLにアクセスしてください:")
-    print("  http://localhost:5000")
+    print("  http://localhost")
     print("\n終了するには Ctrl+C を押してください")
     print("=" * 80)
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=80)
