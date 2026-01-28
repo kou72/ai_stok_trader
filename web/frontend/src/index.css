@@ -46,3 +46,19 @@ code {
 .animate-pulse-slow {
   animation: pulse-slow 1.5s ease-in-out infinite;
 }
+
+/* スクロールスナップ用のモバイル最適化 */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+/* モバイルでのオーバースクロールを防止 */
+.snap-y {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}

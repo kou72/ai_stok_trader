@@ -1,16 +1,7 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import TrainingPage from './pages/TrainingPage'
-import ResultsPage from './pages/ResultsPage'
+import HomePage from './pages/HomePage'
 
 function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<TrainingPage />} />
-        <Route path="/results" element={<ResultsPage />} />
-      </Routes>
-    </Router>
-  )
+  return <HomePage />
 }
 
 export default App

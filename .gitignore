@@ -50,3 +50,6 @@ package-lock.json
 
 # Web build files
 /web/static/dist/
+
+# claude setting file
+.claude

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Pagination } from 'swiper/modules'
 import {
@@ -15,12 +14,9 @@ import {
 } from 'chart.js'
 import { Bar, Line } from 'react-chartjs-2'
 
-// Swiper styles
 import 'swiper/css'
-import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 
-// Chart.js の登録
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -32,7 +28,6 @@ ChartJS.register(
   Legend
 )
 
-// 画面サイズ取得用のカスタムフック
 function useWindowSize() {
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
@@ -54,109 +49,17 @@ function useWindowSize() {
   return windowSize
 }
 
-function ResultsPage() {
-  const [results, setResults] = useState([])
-  const [detailsMap, setDetailsMap] = useState({})
-  const [loading, setLoading] = useState(true)
-  const { height } = useWindowSize()
-
-  useEffect(() => {
-    fetchResults()
-  }, [])
-
-  const fetchResults = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/results')
-      const data = await response.json()
-      const resultsList = data.results || []
-      setResults(resultsList)
-
-      // 各結果の詳細を取得
-      const detailsPromises = resultsList.map(result =>
-        fetch(`/api/results/${result.id}`).then(res => res.json())
-      )
-      const details = await Promise.all(detailsPromises)
-
-      const detailsMapObj = {}
-      details.forEach(detail => {
-        detailsMapObj[detail.id] = detail
-      })
-      setDetailsMap(detailsMapObj)
-    } catch (error) {
-      console.error('結果取得エラー:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-800 text-2xl">読み込み中...</div>
-      </div>
-    )
-  }
-
-  if (results.length === 0) {
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="container mx-auto px-4 py-8">
-          <Link
-            to="/"
-            className="inline-block mb-6 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            ← 学習ページに戻る
-          </Link>
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">学習結果がまだありません</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="h-screen bg-white overflow-hidden">
-      <div className="container mx-auto px-4 h-full flex flex-col max-w-6xl">
-        {/* カルーセル */}
-        <Swiper
-          modules={[Pagination]}
-          spaceBetween={50}
-          slidesPerView={1}
-          pagination={{ clickable: true }}
-          className="results-swiper w-full flex-1"
-        >
-          {results.map((result) => {
-            const detail = detailsMap[result.id]
-            if (!detail) return null
-
-            return (
-              <SwiperSlide key={result.id}>
-                <ResultSlide result={result} detail={detail} viewportHeight={height} />
-              </SwiperSlide>
-            )
-          })}
-        </Swiper>
-      </div>
-    </div>
-  )
-}
-
 function ResultSlide({ result, detail, viewportHeight }) {
-  // 画面サイズに応じた高さ計算
   const headerHeight = 80
   const paginationHeight = 50
   const padding = 32
   const availableHeight = viewportHeight - headerHeight - paginationHeight - padding
 
-  // セクションの高さ配分（vh単位ではなくpx）
   const idHeight = 20
   const barChartHeight = Math.floor(availableHeight * 0.30)
   const lineChartHeight = Math.floor(availableHeight * 0.45)
-  const configHeight = availableHeight - idHeight - barChartHeight - lineChartHeight - 16 * 2 // gap分を引く
+  const configHeight = availableHeight - idHeight - barChartHeight - lineChartHeight - 16 * 2
 
-  // 棒グラフデータ（results.json）
   const precisionChartData = {
     labels: ['訓練', '検証', 'テスト'],
     datasets: [
@@ -186,34 +89,23 @@ function ResultSlide({ result, detail, viewportHeight }) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false,
-      },
+      legend: { display: false },
     },
     scales: {
       y: {
         beginAtZero: true,
         max: 100,
         ticks: {
-          callback: function(value) {
-            return value + '%'
-          },
-          font: {
-            size: 10,
-          },
+          callback: function(value) { return value + '%' },
+          font: { size: 10 },
         },
       },
       x: {
-        ticks: {
-          font: {
-            size: 10,
-          },
-        },
+        ticks: { font: { size: 10 } },
       },
     },
   }
 
-  // 折れ線グラフデータ（loss + precision history）
   const historyChartData = {
     labels: detail.loss_history?.map(row => row.epoch) || [],
     datasets: [
@@ -259,19 +151,11 @@ function ResultSlide({ result, detail, viewportHeight }) {
   const historyChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
         position: 'top',
-        labels: {
-          font: {
-            size: 10,
-          },
-          boxWidth: 20,
-        },
+        labels: { font: { size: 10 }, boxWidth: 20 },
       },
     },
     scales: {
@@ -279,54 +163,27 @@ function ResultSlide({ result, detail, viewportHeight }) {
         type: 'linear',
         display: true,
         position: 'left',
-        title: {
-          display: true,
-          text: 'Loss',
-          font: {
-            size: 10,
-          },
-        },
-        ticks: {
-          font: {
-            size: 9,
-          },
-        },
+        title: { display: true, text: 'Loss', font: { size: 10 } },
+        ticks: { font: { size: 9 } },
       },
       y1: {
         type: 'linear',
         display: true,
         position: 'right',
-        title: {
-          display: true,
-          text: '的中率 (%)',
-          font: {
-            size: 10,
-          },
-        },
-        grid: {
-          drawOnChartArea: false,
-        },
+        title: { display: true, text: '的中率 (%)', font: { size: 10 } },
+        grid: { drawOnChartArea: false },
         min: 0,
         max: 100,
-        ticks: {
-          font: {
-            size: 9,
-          },
-        },
+        ticks: { font: { size: 9 } },
       },
       x: {
-        ticks: {
-          font: {
-            size: 9,
-          },
-        },
+        ticks: { font: { size: 9 } },
       },
     },
   }
 
   return (
     <div className="h-full flex flex-col py-2 overflow-hidden">
-      {/* ヘッダー（ID + 処理時間） */}
       <div className="flex-shrink-0 flex justify-between items-center px-2 mb-2" style={{ height: `${idHeight}px` }}>
         <p className="text-gray-600 text-xs">ID: {result.id}</p>
         <p className="text-blue-500 text-xs font-semibold">
@@ -334,7 +191,6 @@ function ResultSlide({ result, detail, viewportHeight }) {
         </p>
       </div>
 
-      {/* 棒グラフ（正答率） */}
       <div className="flex-shrink-0 bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm" style={{ height: `${barChartHeight}px` }}>
         <div style={{ height: `${barChartHeight - 80}px` }}>
           <Bar data={precisionChartData} options={precisionChartOptions} />
@@ -345,26 +201,20 @@ function ResultSlide({ result, detail, viewportHeight }) {
             if (!data) return null
             return (
               <div key={name} className="bg-gray-50 p-2 rounded">
-                <div className="text-blue-500 font-bold text-sm">
-                  {data.precision_percent}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {data.correct_count}/{data.predicted_count}
-                </div>
+                <div className="text-blue-500 font-bold text-sm">{data.precision_percent}</div>
+                <div className="text-xs text-gray-500">{data.correct_count}/{data.predicted_count}</div>
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* 折れ線グラフ（LossとPrecision） */}
       <div className="flex-shrink-0 bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm" style={{ height: `${lineChartHeight}px` }}>
         <div style={{ height: `${lineChartHeight - 24}px` }}>
           <Line data={historyChartData} options={historyChartOptions} />
         </div>
       </div>
 
-      {/* 学習設定（2列グリッド） */}
       <div className="flex-1 bg-white border border-gray-200 rounded-lg p-3 shadow-sm overflow-y-auto" style={{ height: `${configHeight}px` }}>
         <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">学習設定</h3>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -389,4 +239,82 @@ function ResultSlide({ result, detail, viewportHeight }) {
   )
 }
 
-export default ResultsPage
+function ResultsSection() {
+  const [results, setResults] = useState([])
+  const [detailsMap, setDetailsMap] = useState({})
+  const [loading, setLoading] = useState(true)
+  const { height } = useWindowSize()
+
+  useEffect(() => {
+    fetchResults()
+  }, [])
+
+  const fetchResults = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/results')
+      const data = await response.json()
+      const resultsList = data.results || []
+      setResults(resultsList)
+
+      const detailsPromises = resultsList.map(result =>
+        fetch(`/api/results/${result.id}`).then(res => res.json())
+      )
+      const details = await Promise.all(detailsPromises)
+
+      const detailsMapObj = {}
+      details.forEach(detail => {
+        detailsMapObj[detail.id] = detail
+      })
+      setDetailsMap(detailsMapObj)
+    } catch (error) {
+      console.error('結果取得エラー:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="h-full bg-white flex items-center justify-center">
+        <div className="text-gray-500">読み込み中...</div>
+      </div>
+    )
+  }
+
+  if (results.length === 0) {
+    return (
+      <div className="h-full bg-white flex flex-col items-center justify-center px-4">
+        <p className="text-gray-400 text-lg mb-4">学習結果がまだありません</p>
+        <p className="text-gray-300 text-sm">下にスワイプして学習を開始</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full bg-white overflow-hidden">
+      <div className="h-full flex flex-col max-w-6xl mx-auto px-4">
+        <Swiper
+          modules={[Pagination]}
+          spaceBetween={50}
+          slidesPerView={1}
+          pagination={{ clickable: true }}
+          className="results-swiper w-full flex-1"
+        >
+          {results.map((result) => {
+            const detail = detailsMap[result.id]
+            if (!detail) return null
+
+            return (
+              <SwiperSlide key={result.id}>
+                <ResultSlide result={result} detail={detail} viewportHeight={height} />
+              </SwiperSlide>
+            )
+          })}
+        </Swiper>
+      </div>
+    </div>
+  )
+}
+
+export default ResultsSection

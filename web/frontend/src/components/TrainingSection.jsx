@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-function TrainingPage() {
+function TrainingSection() {
   const [csvDirs, setCsvDirs] = useState([])
   const [selectedCsv, setSelectedCsv] = useState('')
   const [status, setStatus] = useState({
@@ -24,7 +24,6 @@ function TrainingPage() {
   const statusIntervalRef = useRef(null)
   const progressIntervalRef = useRef(null)
 
-  // 初期化: CSV ディレクトリ一覧を取得
   useEffect(() => {
     fetchCsvDirs()
     fetchInitialStatus()
@@ -40,7 +39,6 @@ function TrainingPage() {
     }
   }
 
-  // ステータスのポーリング
   useEffect(() => {
     if (status.is_running) {
       startStatusPolling()
@@ -67,7 +65,6 @@ function TrainingPage() {
 
   const startStatusPolling = () => {
     if (statusIntervalRef.current) return
-
     statusIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch('/status')
@@ -88,7 +85,6 @@ function TrainingPage() {
 
   const startProgressPolling = () => {
     if (progressIntervalRef.current) return
-
     progressIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch('/progress')
@@ -121,12 +117,8 @@ function TrainingPage() {
     try {
       const response = await fetch('/start_training', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          csv_dir: selectedCsv
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv_dir: selectedCsv })
       })
 
       const data = await response.json()
@@ -141,11 +133,10 @@ function TrainingPage() {
     }
   }
 
-  // セクション表示用
   const sectionPercent = progress.section_percent || 0
 
   return (
-    <div className="h-screen bg-white flex flex-col">
+    <div className="h-full bg-white flex flex-col">
       {/* コントロール部分 */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200">
         <select
@@ -177,14 +168,10 @@ function TrainingPage() {
                 {progress.current_section}/{progress.total_sections} {progress.section_name}
               </span>
               {progress.section_detail && (
-                <span className="text-xs text-gray-500">
-                  - {progress.section_detail}
-                </span>
+                <span className="text-xs text-gray-500">- {progress.section_detail}</span>
               )}
             </div>
-            <span className="text-sm text-blue-500 font-bold">
-              {sectionPercent.toFixed(0)}%
-            </span>
+            <span className="text-sm text-blue-500 font-bold">{sectionPercent.toFixed(0)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
@@ -203,12 +190,13 @@ function TrainingPage() {
 
       {/* 待機状態 */}
       {!status.is_running && (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-400 text-lg">データセットを選択して「GO」を押してください</p>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <p className="text-gray-400 text-lg mb-4">データセットを選択して「GO」を押してください</p>
+          <p className="text-gray-300 text-sm">上にスワイプして結果を確認</p>
         </div>
       )}
     </div>
   )
 }
 
-export default TrainingPage
+export default TrainingSection
