@@ -96,7 +96,7 @@ function ResultSlide({ result, detail, viewportHeight }) {
         beginAtZero: true,
         max: 100,
         ticks: {
-          callback: function(value) { return value + '%' },
+          callback: function (value) { return value + '%' },
           font: { size: 10 },
         },
       },
@@ -192,21 +192,21 @@ function ResultSlide({ result, detail, viewportHeight }) {
       </div>
 
       <div className="flex-shrink-0 bg-white border border-gray-200 rounded-lg p-2 mb-2 shadow-sm" style={{ height: `${barChartHeight}px` }}>
-        <h3 className="text-xs font-bold text-gray-800 mb-1">的中率</h3>
-        <div style={{ height: `${barChartHeight - 70}px` }}>
-          <Bar data={precisionChartData} options={precisionChartOptions} />
-        </div>
-        <div className="grid grid-cols-3 gap-1 text-center">
+        <div className="grid grid-cols-7 gap-1 text-center">
+          <h3 className="col-span-1 text-xs font-bold text-gray-800 mb-1">的中率</h3>
           {['訓練', '検証', 'テスト'].map((name) => {
             const data = detail.results?.[name]
             if (!data) return null
             return (
-              <div key={name} className="bg-gray-50 p-1 rounded">
+              <div key={name} className="col-span-2 bg-gray-50 p-1 rounded">
                 <div className="text-blue-500 font-bold text-[10px]">{data.precision_percent}</div>
                 <div className="text-[8px] text-gray-500">{data.correct_count}/{data.predicted_count}</div>
               </div>
             )
           })}
+        </div>
+        <div style={{ height: `${barChartHeight - 50}px` }}>
+          <Bar data={precisionChartData} options={precisionChartOptions} />
         </div>
       </div>
 
