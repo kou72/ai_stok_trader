@@ -155,7 +155,7 @@ function ResultSlide({ result, detail, viewportHeight }) {
     plugins: {
       legend: {
         position: 'top',
-        labels: { font: { size: 10 }, boxWidth: 20 },
+        labels: { font: { size: 8 }, boxWidth: 12, padding: 8 },
       },
     },
     scales: {
@@ -288,7 +288,7 @@ function ResultsSection() {
 
   if (loading) {
     return (
-      <div className="h-full bg-gray-50 flex items-center justify-center">
+      <div className="h-[85vh] bg-gray-50 flex items-center justify-center">
         <div className="text-gray-500">読み込み中...</div>
       </div>
     )
@@ -296,7 +296,7 @@ function ResultsSection() {
 
   if (results.length === 0) {
     return (
-      <div className="h-full bg-gray-50 flex flex-col items-center justify-center px-4">
+      <div className="h-[85vh] bg-gray-50 flex flex-col items-center justify-center px-4">
         <p className="text-gray-400 text-lg mb-4">学習結果がまだありません</p>
         <p className="text-gray-300 text-sm">下にスワイプして学習を開始</p>
       </div>
@@ -304,13 +304,13 @@ function ResultsSection() {
   }
 
   return (
-    <div className="h-full bg-gray-50 overflow-hidden">
+    <div className="h-[85vh] bg-gray-50 overflow-hidden">
       <div className="h-full flex flex-col max-w-6xl mx-auto px-4">
         <Swiper
           modules={[Pagination]}
           spaceBetween={50}
           slidesPerView={1}
-          pagination={{ clickable: true }}
+          pagination={{ clickable: true, dynamicBullets: true, dynamicMainBullets: 3 }}
           className="results-swiper w-full flex-1"
         >
           {results.map((result) => {

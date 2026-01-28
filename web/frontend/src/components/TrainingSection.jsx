@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 function ParamSlider({ label, value, onChange, min, max, step, disabled, format }) {
   const displayValue = format ? format(value) : value
   return (
-    <div className="flex flex-col gap-1 max-w-md mx-auto w-full">
+    <div className="flex flex-col gap-1 max-w-xs mx-auto w-full">
       <div className="flex justify-between items-center">
         <label className="text-xs text-gray-600">{label}</label>
         <span className="text-xs font-semibold text-blue-600">{displayValue}</span>
@@ -204,14 +204,14 @@ function TrainingSection() {
   const sectionPercent = progress.section_percent || 0
 
   return (
-    <div className="h-full bg-gray-50 p-4">
+    <div className="h-[85vh] bg-gray-50 p-4">
       <div className="h-full bg-white rounded-xl shadow-sm flex flex-col overflow-hidden">
         {/* プルダウン選択 */}
         <div className="px-4 pt-4 space-y-2">
           <select
             value={selectedCsv}
             onChange={(e) => setSelectedCsv(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:border-blue-500"
             disabled={status.is_running}
           >
             <option value="">データセットを選択</option>
@@ -222,7 +222,7 @@ function TrainingSection() {
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:border-blue-500"
             disabled={status.is_running}
           >
             <option value="">ベースモデル: なし（新規学習）</option>
@@ -234,7 +234,7 @@ function TrainingSection() {
 
         {/* パラメータスライダー */}
         <div className="flex-1 px-4 py-4 overflow-y-auto">
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
             <ParamSlider
               label="タイムステップ"
               value={params.timeStep}
