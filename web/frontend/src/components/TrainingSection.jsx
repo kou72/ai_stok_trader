@@ -233,7 +233,7 @@ function TrainingSection() {
         </div>
 
         {/* パラメータスライダー */}
-        <div className="flex-1 px-4 py-4 overflow-y-auto">
+        <div className="flex-1 px-4 pt-4 overflow-y-auto">
           <div className="flex flex-col gap-3">
             <ParamSlider
               label="タイムステップ"
@@ -333,8 +333,11 @@ function TrainingSection() {
                   <span className="text-xs font-bold text-gray-800">
                     {progress.current_section}/{progress.total_sections} {progress.section_name}
                   </span>
-                  {progress.section_detail && (
-                    <span className="text-xs text-gray-500">- {progress.section_detail}</span>
+                  {progress.current_section === 2 && progress.total_epochs > 0 && (
+                    <span className="text-xs text-gray-500">
+                      - Epoch {progress.epoch}/{progress.total_epochs}
+                      {progress.total_batches > 0 && ` Batch ${progress.batch}/${progress.total_batches}`}
+                    </span>
                   )}
                 </div>
                 <span className="text-xs text-blue-500 font-bold">{sectionPercent.toFixed(0)}%</span>
@@ -345,12 +348,6 @@ function TrainingSection() {
                   style={{ width: `${sectionPercent}%` }}
                 />
               </div>
-              {progress.current_section === 2 && progress.total_epochs > 0 && (
-                <div className="mt-1 text-xs text-gray-500 text-right">
-                  Epoch {progress.epoch}/{progress.total_epochs}
-                  {progress.total_batches > 0 && ` - Batch ${progress.batch}/${progress.total_batches}`}
-                </div>
-              )}
             </>
           ) : (
             <div className="text-xs text-gray-400 text-center">
