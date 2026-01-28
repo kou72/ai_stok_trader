@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 
 function TrainingSection() {
   const [csvDirs, setCsvDirs] = useState([])
+  const [models, setModels] = useState([])
   const [selectedCsv, setSelectedCsv] = useState('')
+  const [selectedModel, setSelectedModel] = useState('')
   const [status, setStatus] = useState({
     is_running: false,
     start_time: null,
@@ -26,6 +28,7 @@ function TrainingSection() {
 
   useEffect(() => {
     fetchCsvDirs()
+    fetchModels()
     fetchInitialStatus()
   }, [])
 
@@ -36,6 +39,16 @@ function TrainingSection() {
       setCsvDirs(data.csv_dirs || [])
     } catch (error) {
       console.error('CSVディレクトリ取得エラー:', error)
+    }
+  }
+
+  const fetchModels = async () => {
+    try {
+      const response = await fetch('/api/models')
+      const data = await response.json()
+      setModels(data.models || [])
+    } catch (error) {
+      console.error('モデル取得エラー:', error)
     }
   }
 
@@ -115,10 +128,15 @@ function TrainingSection() {
     }
 
     try {
+      const requestBody = { csv_dir: selectedCsv }
+      if (selectedModel) {
+        requestBody.base_model = selectedModel
+      }
+
       const response = await fetch('/start_training', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv_dir: selectedCsv })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()
@@ -138,25 +156,40 @@ function TrainingSection() {
   return (
     <div className="h-full bg-white flex flex-col">
       {/* コントロール部分 */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200">
-        <select
-          value={selectedCsv}
-          onChange={(e) => setSelectedCsv(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-          disabled={status.is_running}
-        >
-          <option value="">データセットを選択</option>
-          {csvDirs.map((dir) => (
-            <option key={dir} value={dir}>{dir}</option>
-          ))}
-        </select>
-        <button
-          onClick={handleStartTraining}
-          disabled={status.is_running || !selectedCsv}
-          className="px-6 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-        >
-          GO
-        </button>
+      <div className="px-4 py-3 border-b border-gray-200 space-y-2">
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedCsv}
+            onChange={(e) => setSelectedCsv(e.target.value)}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            disabled={status.is_running}
+          >
+            <option value="">データセットを選択</option>
+            {csvDirs.map((dir) => (
+              <option key={dir} value={dir}>{dir}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleStartTraining}
+            disabled={status.is_running || !selectedCsv}
+            className="px-6 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+          >
+            GO
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            disabled={status.is_running}
+          >
+            <option value="">ベースモデル: なし（新規学習）</option>
+            {models.map((model) => (
+              <option key={model} value={model}>{model}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* 進捗表示 */}

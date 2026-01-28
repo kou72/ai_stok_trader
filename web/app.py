@@ -45,7 +45,24 @@ def get_csv_directories():
     return csv_dirs
 
 
-def run_training(csv_path):
+def get_model_files():
+    """
+    model/ ディレクトリ内のモデルファイル一覧を取得
+
+    Returns:
+    --------
+    list : モデルファイル名のリスト
+    """
+    model_path = os.path.join(os.path.dirname(__file__), '..', 'model')
+    if not os.path.exists(model_path):
+        return []
+    model_files = glob.glob(os.path.join(model_path, 'best_model_*.pth'))
+    model_files = [os.path.basename(f) for f in model_files]
+    model_files.sort(reverse=True)  # 新しい順に並べる
+    return model_files
+
+
+def run_training(csv_path, base_model=None):
     """
     学習処理を別スレッドで実行
 
@@ -53,6 +70,8 @@ def run_training(csv_path):
     -----------
     csv_path : str
         CSVディレクトリのパス
+    base_model : str, optional
+        ベースモデルのファイル名
     """
     global training_status
 
@@ -72,6 +91,11 @@ def run_training(csv_path):
 
         # Pythonコマンドを実行（進捗ファイルを指定）
         cmd = [sys.executable, main_py_path, '--csv', csv_path, '--progress', PROGRESS_FILE]
+
+        # ベースモデルが指定されている場合は追加
+        if base_model:
+            base_model_path = os.path.join('model', base_model)
+            cmd.extend(['--base-model', base_model_path])
 
         # 環境変数を設定（UTF-8エンコーディングを強制）
         env = os.environ.copy()
@@ -124,6 +148,15 @@ def csv_dirs():
     return jsonify({'csv_dirs': csv_directories})
 
 
+@app.route('/api/models')
+def models():
+    """
+    モデルファイル一覧を取得
+    """
+    model_files = get_model_files()
+    return jsonify({'models': model_files})
+
+
 @app.route('/start_training', methods=['POST'])
 def start_training():
     """
@@ -137,9 +170,10 @@ def start_training():
         return jsonify({'error': 'CSVディレクトリを選択してください'}), 400
 
     csv_path = os.path.join('data', csv_dir)
+    base_model = request.json.get('base_model')  # オプショナル
 
     # 学習を別スレッドで実行
-    thread = threading.Thread(target=run_training, args=(csv_path,))
+    thread = threading.Thread(target=run_training, args=(csv_path, base_model))
     thread.daemon = True
     thread.start()
 

@@ -19,7 +19,7 @@ from evaluator import Evaluator
 from progress import ProgressManager
 
 
-def save_config_to_json(result_dir):
+def save_config_to_json(result_dir, data_source, base_model=None):
     """
     設定パラメータをJSONファイルに保存
 
@@ -27,8 +27,14 @@ def save_config_to_json(result_dir):
     -----------
     result_dir : str
         結果保存ディレクトリ
+    data_source : str
+        使用したデータソース名
+    base_model : str, optional
+        ベースモデルのパス
     """
     config_dict = {
+        'DATA_SOURCE': data_source,
+        'BASE_MODEL': os.path.basename(base_model) if base_model else None,
         'TIME_STEP': Config.TIME_STEP,
         'TRAIN_RATIO': Config.TRAIN_RATIO,
         'VAL_RATIO': Config.VAL_RATIO,
@@ -40,8 +46,7 @@ def save_config_to_json(result_dir):
         'DROPOUT': Config.DROPOUT,
         'BATCH_SIZE': Config.BATCH_SIZE,
         'EPOCHS': Config.EPOCHS,
-        'LEARNING_RATE': Config.LEARNING_RATE,
-        'DEVICE': str(Config.DEVICE)
+        'LEARNING_RATE': Config.LEARNING_RATE
     }
 
     config_path = os.path.join(result_dir, 'config.json')
@@ -194,7 +199,7 @@ def calculate_final_precision(results):
     return precision_dict
 
 
-def main(csv_path, progress_file=None):
+def main(csv_path, progress_file=None, base_model=None):
     """
     メイン処理
 
@@ -204,6 +209,8 @@ def main(csv_path, progress_file=None):
         CSVファイルのパス
     progress_file : str
         進捗ファイルのパス（Noneの場合は進捗管理なし）
+    base_model : str
+        ベースモデルのパス（Noneの場合は新規学習）
     """
     # 進捗管理の初期化
     progress = None
@@ -235,8 +242,9 @@ def main(csv_path, progress_file=None):
     # 時間記録用の辞書
     time_log = {}
 
-    # 設定をJSON保存
-    save_config_to_json(result_dir)
+    # 設定をJSON保存（データソース名を抽出）
+    data_source = os.path.basename(csv_path)
+    save_config_to_json(result_dir, data_source, base_model)
 
     # ========================================================================
     # セクション1: データ処理
@@ -362,11 +370,18 @@ def main(csv_path, progress_file=None):
         dropout=Config.DROPOUT
     ).to(Config.DEVICE)
 
+    # ベースモデルがある場合はロード
+    if base_model and os.path.exists(base_model):
+        print(f"  ベースモデルをロード: {base_model}")
+        model.load_state_dict(torch.load(base_model, map_location=Config.DEVICE))
+
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  入力サイズ: {len(Config.FEATURE_COLS)}")
     print(f"  隠れ層サイズ: {Config.HIDDEN_SIZE}")
     print(f"  LSTM層数: {Config.NUM_LAYERS}")
     print(f"  総パラメータ数: {total_params:,}")
+    if base_model:
+        print(f"  ベースモデル: {os.path.basename(base_model)}")
     time_log['train_model_build'] = {
         'seconds': time.time() - step_start,
         'formatted': format_time(time.time() - step_start)
@@ -495,6 +510,12 @@ if __name__ == '__main__':
         default=None,
         help='進捗ファイルのパス'
     )
+    parser.add_argument(
+        '--base-model',
+        type=str,
+        default=None,
+        help='ベースモデルのパス'
+    )
 
     args = parser.parse_args()
-    main(args.csv, args.progress)
+    main(args.csv, args.progress, args.base_model)

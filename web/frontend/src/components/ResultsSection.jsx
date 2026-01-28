@@ -219,6 +219,9 @@ function ResultSlide({ result, detail, viewportHeight }) {
         <h3 className="text-sm font-bold text-gray-800 mb-2 border-b pb-1 sticky top-0 bg-white">学習設定</h3>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           {detail.config && Object.entries({
+            'データ': detail.config.DATA_SOURCE || '-',
+            'ベースモデル': detail.config.BASE_MODEL || '新規',
+            'タイムステップ': detail.config.TIME_STEP,
             'エポック数': detail.config.EPOCHS,
             'バッチサイズ': detail.config.BATCH_SIZE,
             '学習率': detail.config.LEARNING_RATE,
@@ -226,7 +229,6 @@ function ResultSlide({ result, detail, viewportHeight }) {
             '隠れ層サイズ': detail.config.HIDDEN_SIZE,
             'LSTM層数': detail.config.NUM_LAYERS,
             'Dropout': detail.config.DROPOUT,
-            'デバイス': detail.config.DEVICE,
           }).map(([key, value]) => (
             <div key={key} className="flex justify-between py-1 border-b border-gray-100">
               <span className="text-gray-600">{key}:</span>
