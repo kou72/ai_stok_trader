@@ -46,6 +46,7 @@ function TrainingSection() {
     start_time: null,
     end_time: null,
     result_dir: null,
+    running_params: null,
   })
   const [progress, setProgress] = useState({
     is_running: false,
@@ -107,9 +108,28 @@ function TrainingSection() {
       const response = await fetch('/status')
       const data = await response.json()
       setStatus(data)
+      // 実行中のパラメータがあれば反映
+      if (data.is_running && data.running_params) {
+        applyRunningParams(data.running_params)
+      }
     } catch (error) {
       console.error('初期ステータス取得エラー:', error)
     }
+  }
+
+  const applyRunningParams = (runningParams) => {
+    setSelectedCsv(runningParams.csv_dir || '')
+    setSelectedModel(runningParams.base_model || '')
+    setParams({
+      timeStep: runningParams.time_step || 480,
+      epochs: runningParams.epochs || 5,
+      batchSize: runningParams.batch_size || 128,
+      learningRate: runningParams.learning_rate || 0.001,
+      priceThreshold: runningParams.price_threshold || 1.0,
+      hiddenSize: runningParams.hidden_size || 64,
+      numLayers: runningParams.num_layers || 2,
+      dropout: runningParams.dropout || 0.3,
+    })
   }
 
   const startStatusPolling = () => {
@@ -119,6 +139,10 @@ function TrainingSection() {
         const response = await fetch('/status')
         const data = await response.json()
         setStatus(data)
+        // 実行中のパラメータがあれば反映
+        if (data.is_running && data.running_params) {
+          applyRunningParams(data.running_params)
+        }
       } catch (error) {
         console.error('ステータス取得エラー:', error)
       }

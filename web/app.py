@@ -26,7 +26,8 @@ training_status = {
     'is_running': False,
     'start_time': None,
     'end_time': None,
-    'result_dir': None
+    'result_dir': None,
+    'running_params': None  # 実行中のパラメータ
 }
 
 
@@ -83,6 +84,19 @@ def run_training(csv_path, params=None):
         training_status['start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         training_status['end_time'] = None
         training_status['result_dir'] = None
+        # 実行中のパラメータを保存
+        training_status['running_params'] = {
+            'csv_dir': os.path.basename(csv_path),
+            'base_model': params.get('base_model', ''),
+            'time_step': params.get('time_step', 480),
+            'epochs': params.get('epochs', 5),
+            'batch_size': params.get('batch_size', 128),
+            'learning_rate': params.get('learning_rate', 0.001),
+            'price_threshold': params.get('price_threshold', 1.0),
+            'hidden_size': params.get('hidden_size', 64),
+            'num_layers': params.get('num_layers', 2),
+            'dropout': params.get('dropout', 0.3),
+        }
 
         # 進捗ファイルをリセット
         progress_manager = ProgressManager(PROGRESS_FILE)
@@ -150,6 +164,7 @@ def run_training(csv_path, params=None):
 
     finally:
         training_status['is_running'] = False
+        training_status['running_params'] = None
 
 
 @app.route('/')
@@ -222,7 +237,8 @@ def status():
         'is_running': training_status['is_running'],
         'start_time': training_status['start_time'],
         'end_time': training_status['end_time'],
-        'result_dir': training_status['result_dir']
+        'result_dir': training_status['result_dir'],
+        'running_params': training_status['running_params']
     })
 
 
@@ -272,6 +288,10 @@ def get_results():
                 if os.path.exists(results_path):
                     with open(results_path, 'r', encoding='utf-8') as f:
                         results_data = json.load(f)
+
+                # AI処理が完了していない（results.jsonが空または存在しない）場合はスキップ
+                if not results_data:
+                    continue
 
                 results.append({
                     'id': result_id,

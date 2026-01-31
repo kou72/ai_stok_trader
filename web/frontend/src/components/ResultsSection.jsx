@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Pagination } from 'swiper/modules'
 import {
@@ -256,11 +256,46 @@ function ResultsSection() {
   const [results, setResults] = useState([])
   const [detailsMap, setDetailsMap] = useState({})
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const { height } = useWindowSize()
+
+  const touchStartY = useRef(0)
+  const pullDistance = useRef(0)
+  const contentRef = useRef(null)
+  const PULL_THRESHOLD = 60
 
   useEffect(() => {
     fetchResults()
   }, [])
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY
+    if (contentRef.current) {
+      contentRef.current.style.transition = 'none'
+    }
+  }
+
+  const handleTouchMove = (e) => {
+    if (refreshing) return
+    const diff = e.touches[0].clientY - touchStartY.current
+    if (diff > 0 && contentRef.current) {
+      pullDistance.current = Math.min(diff * 0.4, 80)
+      contentRef.current.style.transform = `translateY(${pullDistance.current}px)`
+    }
+  }
+
+  const handleTouchEnd = async () => {
+    if (contentRef.current) {
+      contentRef.current.style.transition = 'transform 0.2s ease-out'
+      contentRef.current.style.transform = 'translateY(0)'
+    }
+    if (pullDistance.current > PULL_THRESHOLD && !refreshing) {
+      setRefreshing(true)
+      await fetchResults()
+      setRefreshing(false)
+    }
+    pullDistance.current = 0
+  }
 
   const fetchResults = async () => {
     try {
@@ -295,18 +330,58 @@ function ResultsSection() {
     )
   }
 
+  // 更新アイコン
+  const RefreshIcon = () => (
+    <svg
+      className={`w-5 h-5 text-gray-400 ${refreshing ? 'animate-spin' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+      />
+    </svg>
+  )
+
   if (results.length === 0) {
     return (
-      <div className="h-[85vh] bg-gray-50 flex flex-col items-center justify-center px-4">
-        <p className="text-gray-400 text-lg mb-4">学習結果がまだありません</p>
-        <p className="text-gray-300 text-sm">下にスワイプして学習を開始</p>
+      <div
+        className="h-[85vh] bg-gray-50 flex flex-col items-center justify-center px-4 overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div ref={contentRef} className="flex flex-col items-center">
+          {/* 更新アイコン（コンテンツ上部に配置） */}
+          <div className="-mt-12 mb-4">
+            <RefreshIcon />
+          </div>
+          <p className="text-gray-400 text-lg mb-4 text-center">学習結果がまだありません</p>
+          <p className="text-gray-300 text-sm text-center">下にスワイプして学習を開始</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="h-[85vh] bg-gray-50 overflow-hidden">
-      <div className="h-full flex flex-col max-w-6xl mx-auto px-4">
+    <div
+      className="h-[85vh] bg-gray-50 overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div
+        ref={contentRef}
+        className="h-full flex flex-col max-w-6xl mx-auto px-4"
+      >
+        {/* 更新アイコン（コンテンツ上部に配置、初期状態では画面外） */}
+        <div className="flex justify-center -mt-8 mb-2">
+          <RefreshIcon />
+        </div>
         <Swiper
           modules={[Pagination]}
           spaceBetween={50}

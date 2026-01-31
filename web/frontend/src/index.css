@@ -63,7 +63,27 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* スライダーのカスタムスタイル（タッチ操作の制御のみ） */
+/* スライダーのカスタムスタイル */
 .slider-thumb {
   touch-action: none;
+}
+
+/* 非活性時のスライダーつまみを薄い水色に */
+.slider-thumb:disabled::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #93C5FD;
+  cursor: not-allowed;
+}
+
+.slider-thumb:disabled::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #93C5FD;
+  border: none;
+  cursor: not-allowed;
 }
