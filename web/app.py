@@ -20,6 +20,7 @@ app = Flask(__name__, static_folder='static/dist', static_url_path='')
 # 進捗ファイルのパス
 PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '..')
 PROGRESS_FILE = os.path.join(PROJECT_ROOT, 'progress', 'progress.json')
+LOG_FILE = os.path.join(PROJECT_ROOT, 'progress', 'training.log')
 
 # 実行状態を管理
 training_status = {
@@ -136,17 +137,24 @@ def run_training(csv_path, params=None):
         env = os.environ.copy()
         env['PYTHONIOENCODING'] = 'utf-8'
 
-        # プロセスを起動
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=project_root,
-            env=env
-        )
+        # ログファイルを初期化
+        os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+        with open(LOG_FILE, 'w', encoding='utf-8') as f:
+            f.write(f"=== 学習開始: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+            f.write(f"コマンド: {' '.join(cmd)}\n\n")
 
-        # プロセスの終了を待つ
-        process.wait()
+        # プロセスを起動（stdout/stderrをログファイルに出力）
+        with open(LOG_FILE, 'a', encoding='utf-8') as log_file:
+            process = subprocess.Popen(
+                cmd,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                cwd=project_root,
+                env=env
+            )
+
+            # プロセスの終了を待つ
+            process.wait()
 
         training_status['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -262,6 +270,25 @@ def progress():
     """
     progress_data = ProgressManager.load(PROGRESS_FILE)
     return jsonify(progress_data)
+
+
+@app.route('/api/logs')
+def get_logs():
+    """
+    学習ログを取得（最新100行のみ）
+    """
+    try:
+        if os.path.exists(LOG_FILE):
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            # 最新100行のみ返す
+            last_lines = lines[-100:] if len(lines) > 100 else lines
+            log_content = ''.join(last_lines)
+            return jsonify({'logs': log_content})
+        else:
+            return jsonify({'logs': 'ログファイルがありません'})
+    except Exception as e:
+        return jsonify({'logs': f'ログ読み込みエラー: {str(e)}'})
 
 
 @app.route('/api/results')

@@ -64,6 +64,12 @@ function TrainingSection() {
   const progressIntervalRef = useRef(null)
   const lastProgressRef = useRef({ section: 0, percent: 0 })
 
+  // ログモーダル用の状態
+  const [showLogModal, setShowLogModal] = useState(false)
+  const [logContent, setLogContent] = useState('')
+  const logContainerRef = useRef(null)
+  const logPollingRef = useRef(null)
+
   useEffect(() => {
     fetchCsvDirs()
     fetchModels()
@@ -167,13 +173,17 @@ function TrainingSection() {
         const response = await fetch('/progress')
         const data = await response.json()
 
-        // 同じセクション内で進捗が後退した場合は前の値を維持
+        // 進捗の後退を防ぐ
         const currentSection = data.current_section || 0
         const currentPercent = data.section_percent || 0
         const last = lastProgressRef.current
 
-        if (currentSection === last.section && currentPercent < last.percent) {
-          // 進捗の後退を防ぐ
+        if (currentSection < last.section) {
+          // セクションが後退している場合は読み込みエラーとみなして前の値を維持
+          // 何も更新しない（前回のprogressをそのまま使う）
+          return
+        } else if (currentSection === last.section && currentPercent < last.percent) {
+          // 同じセクション内で進捗が後退した場合は前の値を維持
           data.section_percent = last.percent
         } else {
           // 進捗を更新
@@ -197,6 +207,47 @@ function TrainingSection() {
   const handleParamChange = (key, value) => {
     setParams(prev => ({ ...prev, [key]: value }))
   }
+
+  const fetchLogs = async () => {
+    try {
+      const response = await fetch('/api/logs')
+      const data = await response.json()
+      setLogContent(data.logs || '')
+      // ログ表示後に自動スクロール
+      setTimeout(() => {
+        if (logContainerRef.current) {
+          logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+        }
+      }, 100)
+    } catch (error) {
+      setLogContent('ログ取得エラー: ' + error.message)
+    }
+  }
+
+  const handleOpenLogModal = () => {
+    setShowLogModal(true)
+    fetchLogs()
+  }
+
+  // ログモーダルが開いている間、自動更新
+  useEffect(() => {
+    if (showLogModal) {
+      logPollingRef.current = setInterval(() => {
+        fetchLogs()
+      }, 1000)
+    } else {
+      if (logPollingRef.current) {
+        clearInterval(logPollingRef.current)
+        logPollingRef.current = null
+      }
+    }
+    return () => {
+      if (logPollingRef.current) {
+        clearInterval(logPollingRef.current)
+        logPollingRef.current = null
+      }
+    }
+  }, [showLogModal])
 
   const handleStartTraining = async () => {
     if (!selectedCsv) {
@@ -382,7 +433,18 @@ function TrainingSection() {
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-blue-500 font-bold">{sectionPercent.toFixed(0)}%</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-blue-500 font-bold">{sectionPercent.toFixed(0)}%</span>
+                  <button
+                    onClick={handleOpenLogModal}
+                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="ログを表示"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
@@ -392,12 +454,60 @@ function TrainingSection() {
               </div>
             </>
           ) : (
-            <div className="text-xs text-gray-400 text-center">
-              学習待機中
+            <div className="flex justify-between items-center">
+              <div className="flex-1 text-xs text-gray-400 text-center">
+                学習待機中
+              </div>
+              <button
+                onClick={handleOpenLogModal}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                title="ログを表示"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* ログモーダル */}
+      {showLogModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
+              <h3 className="text-sm font-bold text-gray-800">学習ログ</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchLogs}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="更新"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setShowLogModal(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="閉じる"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div
+              ref={logContainerRef}
+              className="flex-1 overflow-auto p-4 bg-gray-900 text-gray-100 font-mono text-xs leading-relaxed"
+            >
+              <pre className="whitespace-pre-wrap break-words">{logContent || 'ログを読み込み中...'}</pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
