@@ -232,13 +232,26 @@ def start_training():
 def status():
     """
     学習の状態を取得
+    Web実行とCLI実行の両方を検知する
     """
+    # Webからの実行状態を優先
+    is_running = training_status['is_running']
+    running_params = training_status['running_params']
+
+    # Webから実行されていない場合、progress.jsonをチェック（CLI実行検知）
+    if not is_running:
+        progress_data = ProgressManager.load(PROGRESS_FILE)
+        if progress_data.get('is_running', False):
+            is_running = True
+            # CLI実行時はprogress.jsonからパラメータを取得
+            running_params = progress_data.get('running_params')
+
     return jsonify({
-        'is_running': training_status['is_running'],
+        'is_running': is_running,
         'start_time': training_status['start_time'],
         'end_time': training_status['end_time'],
         'result_dir': training_status['result_dir'],
-        'running_params': training_status['running_params']
+        'running_params': running_params
     })
 
 

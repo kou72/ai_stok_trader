@@ -176,8 +176,21 @@ def main(csv_path, progress_file=None, base_model=None, no_display=False):
     # 進捗管理の初期化
     progress = None
     if progress_file:
+        # 実行パラメータを設定
+        running_params = {
+            'csv_dir': os.path.basename(csv_path),
+            'base_model': os.path.basename(base_model) if base_model else '',
+            'time_step': Config.TIME_STEP,
+            'epochs': Config.EPOCHS,
+            'batch_size': Config.BATCH_SIZE,
+            'learning_rate': Config.LEARNING_RATE,
+            'price_threshold': Config.PRICE_INCREASE_THRESHOLD,
+            'hidden_size': Config.HIDDEN_SIZE,
+            'num_layers': Config.NUM_LAYERS,
+            'dropout': Config.DROPOUT,
+        }
         progress = ProgressManager(progress_file)
-        progress.start(total_epochs=Config.EPOCHS)
+        progress.start(total_epochs=Config.EPOCHS, running_params=running_params)
 
     # 全体の開始時間
     total_start_time = time.time()
@@ -471,8 +484,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--progress',
         type=str,
-        default=None,
-        help='進捗ファイルのパス'
+        default='progress/progress.json',
+        help='進捗ファイルのパス（デフォルト: progress/progress.json）'
     )
     parser.add_argument(
         '--base-model',

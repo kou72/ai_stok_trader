@@ -62,6 +62,7 @@ function TrainingSection() {
   })
   const statusIntervalRef = useRef(null)
   const progressIntervalRef = useRef(null)
+  const lastProgressRef = useRef({ section: 0, percent: 0 })
 
   useEffect(() => {
     fetchCsvDirs()
@@ -90,11 +91,12 @@ function TrainingSection() {
   }
 
   useEffect(() => {
+    // ステータスは常にポーリング（CLI実行検知のため）
+    startStatusPolling()
+
     if (status.is_running) {
-      startStatusPolling()
       startProgressPolling()
     } else {
-      stopStatusPolling()
       stopProgressPolling()
     }
     return () => {
@@ -158,10 +160,26 @@ function TrainingSection() {
 
   const startProgressPolling = () => {
     if (progressIntervalRef.current) return
+    // ポーリング開始時に前回の進捗をリセット
+    lastProgressRef.current = { section: 0, percent: 0 }
     progressIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch('/progress')
         const data = await response.json()
+
+        // 同じセクション内で進捗が後退した場合は前の値を維持
+        const currentSection = data.current_section || 0
+        const currentPercent = data.section_percent || 0
+        const last = lastProgressRef.current
+
+        if (currentSection === last.section && currentPercent < last.percent) {
+          // 進捗の後退を防ぐ
+          data.section_percent = last.percent
+        } else {
+          // 進捗を更新
+          lastProgressRef.current = { section: currentSection, percent: currentPercent }
+        }
+
         setProgress(data)
       } catch (error) {
         console.error('進捗取得エラー:', error)

@@ -45,17 +45,19 @@ class ProgressManager:
             'train_precision': 0.0,
             'val_precision': 0.0,
             'start_time': None,
-            'updated_at': None
+            'updated_at': None,
+            'running_params': None
         }
         self._save()
 
-    def start(self, total_epochs=0):
+    def start(self, total_epochs=0, running_params=None):
         """学習開始"""
         self.progress['is_running'] = True
         self.progress['current_section'] = 0
         self.progress['total_epochs'] = total_epochs
         self.progress['start_time'] = datetime.now().isoformat()
         self.progress['updated_at'] = datetime.now().isoformat()
+        self.progress['running_params'] = running_params
         self._save()
 
     def set_section(self, section_index, detail=''):
@@ -186,5 +188,6 @@ class ProgressManager:
             'train_precision': 0.0,
             'val_precision': 0.0,
             'start_time': None,
-            'updated_at': None
+            'updated_at': None,
+            'running_params': None
         }
