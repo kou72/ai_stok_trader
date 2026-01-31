@@ -1,6 +1,8 @@
 """
 データ読み込み・前処理・シーケンス作成
 """
+import os
+import glob
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -40,10 +42,7 @@ class DataProcessor:
         print("=" * 80)
         print("1. CSVデータ読み込み")
         print("=" * 80)
-        
-        import os
-        import glob
-        
+
         # フォルダかファイルか判定
         if os.path.isdir(csv_path):
             # フォルダの場合：全CSVファイルを読み込み

@@ -8,7 +8,6 @@ from datetime import datetime
 import os
 import json
 import pandas as pd
-import numpy as np
 import time
 
 from config import Config
@@ -17,6 +16,7 @@ from model import StockDataset, StockLSTM
 from trainer import Trainer
 from evaluator import Evaluator
 from progress import ProgressManager
+from utils import format_time, calculate_precision_with_counts
 
 
 def save_config_to_json(result_dir, data_source, base_model=None):
@@ -134,31 +134,6 @@ def save_time_log_to_json(time_log, result_dir):
     return time_path
 
 
-def format_time(seconds):
-    """
-    秒数を時:分:秒形式に変換
-
-    Parameters:
-    -----------
-    seconds : float
-        秒数
-
-    Returns:
-    --------
-    str : フォーマットされた時間文字列
-    """
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = seconds % 60
-
-    if hours > 0:
-        return f"{hours}時間{minutes}分{secs:.2f}秒"
-    elif minutes > 0:
-        return f"{minutes}分{secs:.2f}秒"
-    else:
-        return f"{secs:.2f}秒"
-
-
 def calculate_final_precision(results):
     """
     最終的な的中率を計算
@@ -178,23 +153,7 @@ def calculate_final_precision(results):
     for name in ['訓練', '検証', 'テスト']:
         predictions = results[name]['predictions']
         targets = results[name]['targets']
-
-        pred_binary = (predictions > 0.5).astype(int)
-        predicted_positive = pred_binary == 1
-        n_predicted_positive = np.sum(predicted_positive)
-
-        if n_predicted_positive == 0:
-            precision = 0.0
-        else:
-            true_positive = np.sum((pred_binary == 1) & (targets == 1))
-            precision = float(true_positive / n_predicted_positive)
-
-        precision_dict[name] = {
-            'predicted_count': int(n_predicted_positive),
-            'correct_count': int(np.sum((pred_binary == 1) & (targets == 1))),
-            'precision': precision,
-            'precision_percent': f'{precision*100:.2f}%'
-        }
+        precision_dict[name] = calculate_precision_with_counts(predictions, targets)
 
     return precision_dict
 

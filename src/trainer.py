@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 
+from utils import calculate_precision
+
 
 class Trainer:
     """モデル訓練クラス"""
@@ -151,17 +153,17 @@ class Trainer:
                 )
         
         # 的中率を計算
-        precision = self._calculate_precision(np.array(all_predictions), np.array(all_targets))
-        
+        precision = calculate_precision(np.array(all_predictions), np.array(all_targets))
+
         return total_loss / len(train_loader), precision
-    
+
     def _validate_epoch(self, val_loader):
         """1エポックの検証"""
         self.model.eval()
         total_loss = 0
         all_predictions = []
         all_targets = []
-        
+
         # バッチごとの進捗バー
         batch_bar = tqdm(
             val_loader,
@@ -169,51 +171,22 @@ class Trainer:
             leave=False,
             unit="batch"
         )
-        
+
         with torch.no_grad():
             for X_batch, y_batch in batch_bar:
                 X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
                 outputs = self.model(X_batch)
                 loss = self.criterion(outputs, y_batch)
                 total_loss += loss.item()
-                
+
                 # 的中率計算用にデータを保存
                 all_predictions.extend(outputs.cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
-                
+
                 # 進捗バーの説明を更新
                 batch_bar.set_postfix({'Loss': f'{loss.item():.4f}'})
-        
+
         # 的中率を計算
-        precision = self._calculate_precision(np.array(all_predictions), np.array(all_targets))
-        
+        precision = calculate_precision(np.array(all_predictions), np.array(all_targets))
+
         return total_loss / len(val_loader), precision
-    
-    @staticmethod
-    def _calculate_precision(predictions, targets):
-        """
-        モデルが1と予測したときの的中率（適合率）を計算
-        
-        Parameters:
-        -----------
-        predictions : ndarray
-            予測確率
-        targets : ndarray
-            正解ラベル
-        
-        Returns:
-        --------
-        precision : float
-            的中率
-        """
-        pred_binary = (predictions > 0.5).astype(int)
-        predicted_positive = pred_binary == 1
-        n_predicted_positive = np.sum(predicted_positive)
-        
-        if n_predicted_positive == 0:
-            return 0.0
-        
-        true_positive = np.sum((pred_binary == 1) & (targets == 1))
-        precision = true_positive / n_predicted_positive
-        
-        return precision
