@@ -195,80 +195,90 @@ class DataProcessor:
     def create_sequences(self, df, time_step):
         """
         3. シーケンス作成（NumPy最適化版）
-        
+
         Parameters:
         -----------
         df : DataFrame
             正規化済みデータ
         time_step : int
             時系列の長さ
-        
+
         Returns:
         --------
-        X, y, dates : ndarray, ndarray, list
-            シーケンスデータ
+        X, y, dates, stock_bounds : ndarray, ndarray, list, list
+            シーケンスデータと銘柄ごとの境界情報
+            stock_bounds: [(start, end), ...] 各銘柄のインデックス範囲
         """
         print("\n" + "=" * 80)
         print(f"3. シーケンス作成（time_step={time_step}）")
         print("=" * 80)
-        
+
         # 銘柄ごとにデータを分割
         stock_codes = df['銘柄コード'].unique()
         X_list, y_list, dates_list = [], [], []
+        stock_bounds = []  # 銘柄ごとの境界情報
+        current_idx = 0
         skipped_count = 0
-        
+
         for stock_code in tqdm(stock_codes, desc="シーケンス作成中", unit="銘柄"):
             df_stock = df[df['銘柄コード'] == stock_code].reset_index(drop=True)
-            
+
             if len(df_stock) <= time_step:
                 skipped_count += 1
                 continue
-            
+
             # NumPy配列に変換
             features = df_stock[self.feature_cols].values
             targets = df_stock['基準超'].values
             dates = df_stock['日付'].values
-            
+
             n_samples = len(features) - time_step
             n_features = features.shape[1]
-            
+
             # 事前に配列を確保（高速化のポイント）
             X_stock = np.zeros((n_samples, time_step, n_features))
             y_stock = np.zeros(n_samples)
-            
+
             # データを埋める
             for i in range(n_samples):
                 X_stock[i] = features[i:i+time_step]
                 y_stock[i] = targets[i+time_step]
-            
+
             X_list.append(X_stock)
             y_list.append(y_stock)
             dates_list.extend(dates[time_step:])
-        
+
+            # 銘柄の境界を記録
+            stock_bounds.append((current_idx, current_idx + n_samples))
+            current_idx += n_samples
+
         # 配列の結合（進捗表示付き）
         print("\n配列を結合中...")
         X = np.vstack(X_list)
         y = np.concatenate(y_list)
-        
+
         print(f"\nシーケンス作成完了！")
         print(f"  対象銘柄数: {len(stock_codes) - skipped_count}/{len(stock_codes)}")
         print(f"  X.shape: {X.shape} (サンプル数, 時系列長, 特徴量数)")
         print(f"  y.shape: {y.shape}")
         print(f"  基準超=1の割合: {np.sum(y==1)/len(y)*100:.2f}%")
-        
-        return X, y, dates_list
+
+        return X, y, dates_list, stock_bounds
     
-    def split_data(self, X, y, train_ratio, val_ratio):
+    def split_data(self, X, y, train_ratio, val_ratio, stock_bounds=None):
         """
-        4. 訓練/検証/テスト分割
-        
+        4. 訓練/検証/テスト分割（銘柄ごとに時系列で分割）
+
         Parameters:
         -----------
         X, y : ndarray
             シーケンスデータ
         train_ratio, val_ratio : float
             分割比率
-        
+        stock_bounds : list, optional
+            銘柄ごとの境界情報 [(start, end), ...]
+            指定されていない場合は従来の単純分割
+
         Returns:
         --------
         splits : dict
@@ -277,22 +287,57 @@ class DataProcessor:
         print("\n" + "=" * 80)
         print("4. 訓練/検証/テスト分割")
         print("=" * 80)
-        
-        total_samples = len(X)
-        train_end = int(total_samples * train_ratio)
-        val_end = int(total_samples * (train_ratio + val_ratio))
-        
-        splits = {
-            'X_train': X[:train_end],
-            'y_train': y[:train_end],
-            'X_val': X[train_end:val_end],
-            'y_val': y[train_end:val_end],
-            'X_test': X[val_end:],
-            'y_test': y[val_end:]
-        }
-        
+
+        if stock_bounds is None:
+            # 従来の単純分割（後方互換性のため）
+            print("  分割方式: 単純分割")
+            total_samples = len(X)
+            train_end = int(total_samples * train_ratio)
+            val_end = int(total_samples * (train_ratio + val_ratio))
+
+            splits = {
+                'X_train': X[:train_end],
+                'y_train': y[:train_end],
+                'X_val': X[train_end:val_end],
+                'y_val': y[train_end:val_end],
+                'X_test': X[val_end:],
+                'y_test': y[val_end:]
+            }
+        else:
+            # 銘柄ごとに時系列で分割
+            print("  分割方式: 銘柄ごとの時系列分割")
+            print(f"  対象銘柄数: {len(stock_bounds)}")
+
+            X_train_list, y_train_list = [], []
+            X_val_list, y_val_list = [], []
+            X_test_list, y_test_list = [], []
+
+            for start, end in stock_bounds:
+                n_samples = end - start
+                train_end = start + int(n_samples * train_ratio)
+                val_end = start + int(n_samples * (train_ratio + val_ratio))
+
+                # 各銘柄の時系列データを分割
+                # 古いデータ → 訓練/検証、最新データ → テスト
+                X_train_list.append(X[start:train_end])
+                y_train_list.append(y[start:train_end])
+                X_val_list.append(X[train_end:val_end])
+                y_val_list.append(y[train_end:val_end])
+                X_test_list.append(X[val_end:end])
+                y_test_list.append(y[val_end:end])
+
+            # 全銘柄のデータを結合
+            splits = {
+                'X_train': np.vstack(X_train_list) if X_train_list else np.array([]),
+                'y_train': np.concatenate(y_train_list) if y_train_list else np.array([]),
+                'X_val': np.vstack(X_val_list) if X_val_list else np.array([]),
+                'y_val': np.concatenate(y_val_list) if y_val_list else np.array([]),
+                'X_test': np.vstack(X_test_list) if X_test_list else np.array([]),
+                'y_test': np.concatenate(y_test_list) if y_test_list else np.array([])
+            }
+
         print(f"訓練: {len(splits['X_train']):,} サンプル")
         print(f"検証: {len(splits['X_val']):,} サンプル")
         print(f"テスト: {len(splits['X_test']):,} サンプル")
-        
+
         return splits

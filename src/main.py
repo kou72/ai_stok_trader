@@ -247,7 +247,7 @@ def main(csv_path, progress_file=None, base_model=None, no_display=False):
     # シーケンス作成
     print("\n[3/4] シーケンス作成...")
     step_start = time.time()
-    X, y, dates = processor.create_sequences(df_normalized, Config.TIME_STEP)
+    X, y, dates, stock_bounds = processor.create_sequences(df_normalized, Config.TIME_STEP)
     time_log['data_sequences'] = {
         'seconds': time.time() - step_start,
         'formatted': format_time(time.time() - step_start)
@@ -255,10 +255,10 @@ def main(csv_path, progress_file=None, base_model=None, no_display=False):
     if progress:
         progress.update_section_progress(75, 'データ分割')
 
-    # データ分割
+    # データ分割（銘柄ごとに時系列で分割）
     print("\n[4/4] データ分割...")
     step_start = time.time()
-    splits = processor.split_data(X, y, Config.TRAIN_RATIO, Config.VAL_RATIO)
+    splits = processor.split_data(X, y, Config.TRAIN_RATIO, Config.VAL_RATIO, stock_bounds)
     time_log['data_split'] = {
         'seconds': time.time() - step_start,
         'formatted': format_time(time.time() - step_start)
@@ -529,9 +529,9 @@ if __name__ == '__main__':
         help='ドロップアウト率'
     )
     parser.add_argument(
-        '--no-display',
+        '--display',
         action='store_true',
-        help='グラフ表示をスキップ'
+        help='グラフを表示する（デフォルトは非表示）'
     )
 
     args = parser.parse_args()
@@ -554,4 +554,4 @@ if __name__ == '__main__':
     if args.dropout is not None:
         Config.DROPOUT = args.dropout
 
-    main(args.csv, args.progress, args.base_model, args.no_display)
+    main(args.csv, args.progress, args.base_model, not args.display)

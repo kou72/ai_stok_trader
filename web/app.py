@@ -106,8 +106,8 @@ def run_training(csv_path, params=None):
         project_root = os.path.join(os.path.dirname(__file__), '..')
         main_py_path = os.path.join(project_root, 'src', 'main.py')
 
-        # Pythonコマンドを実行（進捗ファイルを指定、グラフ表示はスキップ）
-        cmd = [sys.executable, main_py_path, '--csv', csv_path, '--progress', PROGRESS_FILE, '--no-display']
+        # Pythonコマンドを実行（進捗ファイルを指定）
+        cmd = [sys.executable, main_py_path, '--csv', csv_path, '--progress', PROGRESS_FILE]
 
         # ベースモデルが指定されている場合は追加
         if params.get('base_model'):
