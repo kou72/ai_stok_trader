@@ -3,13 +3,12 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-// 古いService Workerを解除
+// Service Workerを登録（通知機能用）
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    registrations.forEach(registration => {
-      registration.unregister()
-      console.log('Service Worker unregistered')
-    })
+  navigator.serviceWorker.register('/sw.js').then(registration => {
+    console.log('Service Worker registered:', registration.scope)
+  }).catch(error => {
+    console.error('Service Worker registration failed:', error)
   })
 }
 
