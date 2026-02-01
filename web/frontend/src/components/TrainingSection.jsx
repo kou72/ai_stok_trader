@@ -54,15 +54,12 @@ function TrainingSection() {
     total_sections: 3,
     section_name: '',
     section_percent: 0,
-    section_detail: '',
-    epoch: 0,
-    total_epochs: 0,
-    batch: 0,
-    total_batches: 0,
+    start_time: null,
   })
   const statusIntervalRef = useRef(null)
   const progressIntervalRef = useRef(null)
   const lastProgressRef = useRef({ section: 0, percent: 0 })
+  const [estimatedEndTime, setEstimatedEndTime] = useState(null)
 
   // ログモーダル用の状態
   const [showLogModal, setShowLogModal] = useState(false)
@@ -74,7 +71,33 @@ function TrainingSection() {
     fetchCsvDirs()
     fetchModels()
     fetchInitialStatus()
+    loadLastConfig()
   }, [])
+
+  // 前回実行したパラメータをconfig.jsonから復元
+  const loadLastConfig = async () => {
+    try {
+      const response = await fetch('/api/last-config')
+      const data = await response.json()
+      if (data.config) {
+        const config = data.config
+        if (config.DATA_SOURCE) setSelectedCsv(config.DATA_SOURCE)
+        if (config.BASE_MODEL) setSelectedModel(config.BASE_MODEL)
+        setParams({
+          timeStep: config.TIME_STEP || 480,
+          epochs: config.EPOCHS || 5,
+          batchSize: config.BATCH_SIZE || 128,
+          learningRate: config.LEARNING_RATE || 0.001,
+          priceThreshold: config.PRICE_INCREASE_THRESHOLD || 1.0,
+          hiddenSize: config.HIDDEN_SIZE || 64,
+          numLayers: config.NUM_LAYERS || 2,
+          dropout: config.DROPOUT || 0.3,
+        })
+      }
+    } catch (error) {
+      console.error('前回設定の読み込みエラー:', error)
+    }
+  }
 
   const fetchCsvDirs = async () => {
     try {
@@ -164,10 +187,44 @@ function TrainingSection() {
     }
   }
 
+  const calculateEstimatedEndTime = (data) => {
+    if (!data.start_time || !data.current_section) {
+      setEstimatedEndTime(null)
+      return
+    }
+
+    // 全体の進捗率を計算 (0-100)
+    const totalSections = data.total_sections || 3
+    const sectionProgress = (data.section_percent || 0) / 100
+    const overallProgress = ((data.current_section - 1) + sectionProgress) / totalSections * 100
+
+    if (overallProgress <= 0) {
+      setEstimatedEndTime(null)
+      return
+    }
+
+    // 経過時間から残り時間を計算
+    const startTime = new Date(data.start_time)
+    const now = new Date()
+    const elapsedMs = now - startTime
+
+    const estimatedTotalMs = elapsedMs / (overallProgress / 100)
+    const remainingMs = estimatedTotalMs - elapsedMs
+
+    if (remainingMs <= 0 || !isFinite(remainingMs)) {
+      setEstimatedEndTime(null)
+      return
+    }
+
+    const endTime = new Date(now.getTime() + remainingMs)
+    setEstimatedEndTime(endTime)
+  }
+
   const startProgressPolling = () => {
     if (progressIntervalRef.current) return
     // ポーリング開始時に前回の進捗をリセット
     lastProgressRef.current = { section: 0, percent: 0 }
+    setEstimatedEndTime(null)
     progressIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch('/progress')
@@ -180,7 +237,6 @@ function TrainingSection() {
 
         if (currentSection < last.section) {
           // セクションが後退している場合は読み込みエラーとみなして前の値を維持
-          // 何も更新しない（前回のprogressをそのまま使う）
           return
         } else if (currentSection === last.section && currentPercent < last.percent) {
           // 同じセクション内で進捗が後退した場合は前の値を維持
@@ -191,6 +247,7 @@ function TrainingSection() {
         }
 
         setProgress(data)
+        calculateEstimatedEndTime(data)
       } catch (error) {
         console.error('進捗取得エラー:', error)
       }
@@ -295,6 +352,18 @@ function TrainingSection() {
   }
 
   const sectionPercent = progress.section_percent || 0
+
+  // 全体の進捗率を計算
+  const totalSections = progress.total_sections || 3
+  const overallPercent = progress.current_section > 0
+    ? ((progress.current_section - 1) + sectionPercent / 100) / totalSections * 100
+    : 0
+
+  // 終了見込み時刻のフォーマット
+  const formatEndTime = (date) => {
+    if (!date) return ''
+    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+  }
 
   return (
     <div className="h-[85vh] bg-gray-50 p-4">
@@ -424,17 +493,16 @@ function TrainingSection() {
               <div className="flex justify-between items-center mb-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-gray-800">
-                    {progress.current_section}/{progress.total_sections} {progress.section_name}
+                    {progress.current_section}/{totalSections} {progress.section_name}
                   </span>
-                  {progress.current_section === 2 && progress.total_epochs > 0 && (
-                    <span className="text-xs text-gray-500">
-                      - Epoch {progress.epoch}/{progress.total_epochs}
-                      {progress.total_batches > 0 && ` Batch ${progress.batch}/${progress.total_batches}`}
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-blue-500 font-bold">{sectionPercent.toFixed(0)}%</span>
+                  {estimatedEndTime && (
+                    <span className="text-xs text-gray-500">
+                      終了予定 {formatEndTime(estimatedEndTime)}
+                    </span>
+                  )}
+                  <span className="text-xs text-blue-500 font-bold">{overallPercent.toFixed(0)}%</span>
                   <button
                     onClick={handleOpenLogModal}
                     className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
@@ -449,7 +517,7 @@ function TrainingSection() {
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-blue-500 h-2 rounded-full transition-all duration-200"
-                  style={{ width: `${sectionPercent}%` }}
+                  style={{ width: `${overallPercent}%` }}
                 />
               </div>
             </>
@@ -478,30 +546,19 @@ function TrainingSection() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
               <h3 className="text-sm font-bold text-gray-800">学習ログ</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={fetchLogs}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="更新"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setShowLogModal(false)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="閉じる"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+              <button
+                onClick={() => setShowLogModal(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                title="閉じる"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             <div
               ref={logContainerRef}
-              className="flex-1 overflow-auto p-4 bg-gray-900 text-gray-100 font-mono text-xs leading-relaxed"
+              className="flex-1 overflow-auto p-4 bg-gray-900 text-gray-100 font-mono text-[10px] leading-relaxed"
             >
               <pre className="whitespace-pre-wrap break-words">{logContent || 'ログを読み込み中...'}</pre>
             </div>
